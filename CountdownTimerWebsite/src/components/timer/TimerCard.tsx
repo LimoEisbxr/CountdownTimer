@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
 
 interface Timer {
     id: string;
@@ -25,7 +24,7 @@ const { protocol, hostname, port } = window.location;
 const apiProtocol = protocol === 'https:' ? 'https:' : 'http:';
 const wsProtocol = 'wss:';
 const apiPort = port ? `:${port}` : '';
-const API_BASE_URL = `${apiProtocol}//${hostname}${apiPort}/api`;
+const API_BASE_URL = `${apiProtocol}//${hostname}${apiPort}/api/projects/1`;
 const WS_BASE_URL = `${wsProtocol}//${hostname}${apiPort}`;
 
 function TimerCard({
@@ -128,8 +127,13 @@ function TimerCard({
     const fetchTimerState = async () => {
         try {
             setIsLoading(true);
-            const response = await axios.get(`${API_BASE_URL}/timers/${id}`);
-            const timerData = response.data;
+            const response = await fetch(`${API_BASE_URL}/timers/${id}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const timerData = await response.json();
 
             setTimeLeft(timerData.timeLeft || timerData.duration);
             setIsRunning(timerData.isRunning || false);
@@ -146,13 +150,15 @@ function TimerCard({
     const startTimer = async () => {
         try {
             setIsLoading(true);
-            const response = await axios.post(
-                `${API_BASE_URL}/timers/${id}/start`
-            );
+            const response = await fetch(`${API_BASE_URL}/timers/${id}/start`, {
+                method: 'POST',
+            });
 
-            if (response.status === 200) {
+            if (response.ok) {
                 setIsRunning(true);
                 setIsPaused(false);
+            } else {
+                throw new Error(`HTTP error! Status: ${response.status}`);
             }
             setIsLoading(false);
             setError(null);
@@ -166,13 +172,15 @@ function TimerCard({
     const pauseTimer = async () => {
         try {
             setIsLoading(true);
-            const response = await axios.post(
-                `${API_BASE_URL}/timers/${id}/pause`
-            );
+            const response = await fetch(`${API_BASE_URL}/timers/${id}/pause`, {
+                method: 'POST',
+            });
 
-            if (response.status === 200) {
+            if (response.ok) {
                 setIsPaused(true);
                 setIsRunning(false);
+            } else {
+                throw new Error(`HTTP error! Status: ${response.status}`);
             }
             setIsLoading(false);
             setError(null);
@@ -186,14 +194,16 @@ function TimerCard({
     const resetTimer = async () => {
         try {
             setIsLoading(true);
-            const response = await axios.post(
-                `${API_BASE_URL}/timers/${id}/reset`
-            );
+            const response = await fetch(`${API_BASE_URL}/timers/${id}/reset`, {
+                method: 'POST',
+            });
 
-            if (response.status === 200) {
+            if (response.ok) {
                 setTimeLeft(duration);
                 setIsRunning(false);
                 setIsPaused(false);
+            } else {
+                throw new Error(`HTTP error! Status: ${response.status}`);
             }
             setIsLoading(false);
             setError(null);
@@ -246,22 +256,29 @@ function TimerCard({
                 duration: editedDuration,
             };
 
-            const response = await axios.put(
-                `${API_BASE_URL}/timers/${id}`,
-                updatedTimer
-            );
+            const response = await fetch(`${API_BASE_URL}/timers/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updatedTimer),
+            });
 
-            if (response.status === 200) {
+            if (response.ok) {
+                const responseData = await response.json();
+
                 if (onTimerUpdated) {
-                    onTimerUpdated(response.data);
+                    onTimerUpdated(responseData);
                 }
 
                 // Update local state with new values from server
-                setTimeLeft(response.data.timeLeft || response.data.duration);
-            }
+                setTimeLeft(responseData.timeLeft || responseData.duration);
 
-            setIsUpdating(false);
-            closeEditModal();
+                setIsUpdating(false);
+                closeEditModal();
+            } else {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
         } catch (err) {
             console.error('Error updating timer:', err);
             setError('Failed to update timer');
@@ -274,16 +291,20 @@ function TimerCard({
         setError(null);
 
         try {
-            const response = await axios.delete(`${API_BASE_URL}/timers/${id}`);
+            const response = await fetch(`${API_BASE_URL}/timers/${id}`, {
+                method: 'DELETE',
+            });
 
-            if (response.status === 200 || response.status === 204) {
+            if (response.ok) {
                 if (onTimerDeleted) {
                     onTimerDeleted(id);
                 }
-            }
 
-            setIsDeleting(false);
-            closeDeleteConfirmation();
+                setIsDeleting(false);
+                closeDeleteConfirmation();
+            } else {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
         } catch (err) {
             console.error('Error deleting timer:', err);
             setError('Failed to delete timer');
