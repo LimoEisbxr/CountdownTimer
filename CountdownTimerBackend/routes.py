@@ -93,6 +93,27 @@ def delete_timer(project_id, timer_id):
     db.session.commit()
     return jsonify({'message': 'Timer deleted'}), 200
 
+@bp.route('/api/projects/<int:project_id>', methods=['GET'])
+def get_project(project_id):
+    project = Project.query.get_or_404(project_id)
+    # collect all timers for this project
+    timers = Timer.query.filter_by(project=project).all()
+    return jsonify({
+        'id': project.id,
+        'name': project.name,
+        'description': project.description,
+        'timers': [
+            {
+                'id': t.id,
+                'name': t.name,
+                'duration': t.duration,
+                'remaining_seconds': t.remaining(),
+                'end_time': t.end_time.isoformat() if t.end_time else None
+            }
+            for t in timers
+        ]
+    }), 200
+
 @bp.route('/api/projects/<int:project_id>', methods=['PUT'])
 def edit_project(project_id):
     project = Project.query.get_or_404(project_id)

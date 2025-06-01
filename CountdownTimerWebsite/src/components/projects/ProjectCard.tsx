@@ -1,8 +1,18 @@
 import type { ProjectCardProps } from '../../types/ProjectCardProps';
+import { useNavigate } from 'react-router-dom';
 
 function ProjectCard({ project }: ProjectCardProps) {
+    const navigate = useNavigate();
+
+    const handleClick = () => {
+        navigate(`/project-admin/${project.id}`);
+    };
+
     return (
-        <div className="relative bg-white/90 dark:bg-gray-800/90 shadow-md rounded-lg overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all duration-300 transform hover:scale-[1.01]">
+        <div
+            className="relative bg-white/90 dark:bg-gray-800/90 shadow-md rounded-lg overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all duration-300 transform hover:scale-[1.01] cursor-pointer"
+            onClick={handleClick}
+        >
             {/* Gradient header */}
             <div className="h-3 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
 
