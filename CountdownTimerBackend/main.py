@@ -34,7 +34,7 @@ def background_task():
                         socketio.emit('timer_update', current_state)
                 except Exception as e:
                     print(f"Error updating timer {timer_id}: {e}")
-            socketio.sleep(1)
+            socketio.sleep(0.25)
                 
 def create_app():
     app = Flask(__name__)

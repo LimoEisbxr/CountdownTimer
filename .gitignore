@@ -2,3 +2,4 @@
 /CountdownTimerBackend/__pycache__
 CountdownTimerBackend/countdown.db
 CountdownTimerWebsite/package-lock.json
+update-and-build.sh
