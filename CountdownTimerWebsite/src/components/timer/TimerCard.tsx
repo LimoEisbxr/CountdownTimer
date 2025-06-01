@@ -20,8 +20,13 @@ interface TimerCardProps {
     onTimerUpdated?: (timer: Timer) => void;
 }
 
-// API base URL - replace with your actual API URL
-const WS_BASE_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:3001';
+// Dynamically generate API and WebSocket base URLs from the current browser location
+const { protocol, hostname, port } = window.location;
+const apiProtocol = protocol === 'https:' ? 'https:' : 'http:';
+const wsProtocol = 'wss:';
+const apiPort = port ? `:${port}` : '';
+const API_BASE_URL = `${apiProtocol}//${hostname}${apiPort}/api`;
+const WS_BASE_URL = `${wsProtocol}//${hostname}${apiPort}`;
 
 function TimerCard({
     id,
