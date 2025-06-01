@@ -37,6 +37,7 @@ def background_task():
             socketio.sleep(0.25)
                 
 def create_app():
+    global app
     app = Flask(__name__)
     base = os.path.abspath(os.path.dirname(__file__))
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(base, 'countdown.db')
