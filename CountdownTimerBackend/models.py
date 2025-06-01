@@ -7,6 +7,7 @@ class Project(db.Model):
     name        = db.Column(db.String(80), unique=True, nullable=False)
     description = db.Column(db.Text, nullable=True)
     timers      = db.relationship('Timer', backref='project', lazy=True)
+
 class Timer(db.Model):
     __tablename__ = 'timers'
     id                  = db.Column(db.Integer, primary_key=True)
@@ -16,17 +17,26 @@ class Timer(db.Model):
     paused              = db.Column(db.Boolean, nullable=False, default=True)
     project_id          = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
     remaining_seconds   = db.Column(db.Integer, nullable=False, default=0)
+    description         = db.Column(db.Text, nullable=True)
+
+    def _get_safe_seconds(self, seconds_value):
+        """Return a safe seconds value for timedelta calculations to prevent overflow"""
+        # Define a reasonable maximum (e.g., 10 years in seconds)
+        MAX_SECONDS = 10 * 365 * 24 * 60 * 60  # 10 years in seconds
+        
+        # Use the minimum of the actual value and the max value
+        return min(seconds_value, MAX_SECONDS)
 
     def __init__(self, **kwargs):
         super(Timer, self).__init__(**kwargs)
         self.remaining_seconds = self.duration
-        self.end_time = datetime.now() + timedelta(seconds=self.duration)
+        self.end_time = datetime.now() + timedelta(seconds=self._get_safe_seconds(self.duration))
 
     def start(self):
         """Start or resume the timer"""
         if self.paused:
             # If resuming from paused state, calculate new end time based on remaining seconds
-            self.end_time = datetime.now() + timedelta(seconds=self.remaining_seconds)
+            self.end_time = datetime.now() + timedelta(seconds=self._get_safe_seconds(self.remaining_seconds))
             self.paused = False
             db.session.commit()
 
@@ -49,5 +59,11 @@ class Timer(db.Model):
         """Reset the timer to its initial state"""
         self.paused = True
         self.remaining_seconds = self.duration
-        self.end_time = datetime.now() + timedelta(seconds=self.duration)
+        self.end_time = datetime.now() + timedelta(seconds=self._get_safe_seconds(self.duration))
+        db.session.commit()
+        
+    def calculate_end_time_and_remaining_seconds(self):
+        """Calculate the end time based on the current time and duration"""
+        self.end_time = datetime.now() + timedelta(seconds=self._get_safe_seconds(self.duration))
+        self.remaining_seconds = self.duration
         db.session.commit()

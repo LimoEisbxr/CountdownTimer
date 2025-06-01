@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 interface Timer {
@@ -37,6 +37,7 @@ function TimerCard({
     const WS_BASE_URL = `wss://${hostname}`;
 
     // Timer state
+    const [currentDuration, setCurrentDuration] = useState(duration);
     const [timeLeft, setTimeLeft] = useState(duration);
     const [isRunning, setIsRunning] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
@@ -77,27 +78,27 @@ function TimerCard({
     };
 
     // Fetch current timer state from server
-    const fetchTimerState = useCallback(async () => {
-        try {
-            setIsLoading(true);
-            const response = await fetch(API_BASE_URL);
+    // const fetchTimerState = useCallback(async () => {
+    //     try {
+    //         setIsLoading(true);
+    //         const response = await fetch(API_BASE_URL);
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
+    //         if (!response.ok) {
+    //             throw new Error(`HTTP error! Status: ${response.status}`);
+    //         }
 
-            let timerData = await response.json();
-            timerData = timerData.timers;
+    //         let timerData = await response.json();
+    //         timerData = timerData.timers;
 
-            setIsRunning(timerData.isRunning || false);
-            setIsPaused(timerData.isPaused || false);
-            setIsLoading(false);
-        } catch (err) {
-            console.error('Error fetching timer state:', err);
-            setError('Failed to load timer data');
-            setIsLoading(false);
-        }
-    }, [API_BASE_URL]);
+    //         setIsRunning(timerData.isRunning || false);
+    //         setIsPaused(timerData.isPaused || false);
+    //         setIsLoading(false);
+    //     } catch (err) {
+    //         console.error('Error fetching timer state:', err);
+    //         setError('Failed to load timer data');
+    //         setIsLoading(false);
+    //     }
+    // }, [API_BASE_URL]);
 
     // Initialize WebSocket connection
     useEffect(() => {
@@ -122,16 +123,23 @@ function TimerCard({
 
         // Listen for timer updates
         socket.on('timer_update', (data) => {
-            console.log('Received timer update:', data);
-            // Update timer state based on server data
-            if (data.remaining_seconds !== undefined) {
-                setTimeLeft(data.remaining_seconds);
+            if (data.id === id) {
+                console.log('Received timer update:', data);
+                // Update timer state based on server data
+                if (data.remaining_seconds !== undefined) {
+                    setTimeLeft(data.remaining_seconds);
+                }
+
+                setIsPaused(data.paused);
+                setIsRunning(!data.paused);
+
+                // Update duration state if provided
+                if (data.duration) {
+                    setCurrentDuration(data.duration);
+                }
+
+                console.log(`isRunning: ${isRunning}, isPaused: ${isPaused}`);
             }
-
-            setIsPaused(data.paused);
-            setIsRunning(!data.paused);
-
-            console.log(`isRunning: ${isRunning}, isPaused: ${isPaused}`);
         });
 
         socket.on('connect_error', (error) => {
@@ -204,7 +212,7 @@ function TimerCard({
             });
 
             if (response.ok) {
-                setTimeLeft(duration);
+                setTimeLeft(currentDuration);
                 setIsRunning(false);
                 setIsPaused(false);
             } else {
@@ -223,7 +231,7 @@ function TimerCard({
     const handleEditTimer = () => {
         setEditedName(name);
         setEditedDescription(description || '');
-        setEditedDuration(duration);
+        setEditedDuration(currentDuration);
         setShowEditModal(true);
     };
 
@@ -322,7 +330,7 @@ function TimerCard({
     // Progress calculation
     const progress = Math.max(
         0,
-        Math.min(100, ((duration - timeLeft) / duration) * 100)
+        Math.min(100, ((currentDuration - timeLeft) / currentDuration) * 100)
     );
 
     return (

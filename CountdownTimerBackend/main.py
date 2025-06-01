@@ -1,11 +1,41 @@
 from flask import Flask, request
 from flask_socketio import SocketIO
 from database import db
-from routes import bp
+from routes import routes, bp
 import os, sqlalchemy, time
+from threading import Lock
+
 
 socketio = SocketIO(cors_allowed_origins="*")
+routes = routes(socketio=socketio)
+thread = None
+thread_lock = Lock()
+active_timers = set()  # Just track which timers are active
 
+def background_task():
+    """Background task that sends timer updates every second"""
+    while True:
+        with app.app_context():
+            # Update all active timers
+            from models import Timer
+            for timer_id in list(active_timers):
+                try:
+                    timer = Timer.query.get(timer_id)
+                    if timer:
+                        current_state = {
+                            'id': timer.id,
+                            'name': timer.name,
+                            'remaining_seconds': timer.remaining(),
+                            'paused': timer.paused,
+                            'duration': timer.duration,
+                            'description': timer.description
+                        }
+                        # Broadcast to all clients
+                        socketio.emit('timer_update', current_state)
+                except Exception as e:
+                    print(f"Error updating timer {timer_id}: {e}")
+            socketio.sleep(1)
+                
 def create_app():
     app = Flask(__name__)
     base = os.path.abspath(os.path.dirname(__file__))
@@ -15,7 +45,14 @@ def create_app():
     db.init_app(app)
     socketio.init_app(app)
 
+    # Start background timer task
+    global thread
+    with thread_lock:
+        if thread is None:
+            thread = socketio.start_background_task(background_task)
+            
     with app.app_context():
+        # Database setup remains the same
         db.create_all()
         insp = sqlalchemy.inspect(db.engine)
 
@@ -35,7 +72,6 @@ def create_app():
         cols = [c['name'] for c in insp.get_columns('timers')]
         if 'paused' not in cols:
             with db.engine.begin() as conn:
-                # default TRUE → 1
                 conn.execute(sqlalchemy.text("ALTER TABLE timers ADD COLUMN paused BOOLEAN NOT NULL DEFAULT 1"))
 
     app.register_blueprint(bp)
@@ -46,33 +82,24 @@ def handle_join_timer(data):
     from models import Project, Timer
     if not data or not isinstance(data, dict):
         return
+    
     project = Project.query.get_or_404(data.get('project_id'))
     timer = Timer.query.filter_by(id=data.get('timer_id'), project=project).first_or_404()
 
-    sid = request.sid
+    # Add timer to active timers
+    active_timers.add(timer.id)
+    
+    # Send initial state
+    current_state = {
+        'id': timer.id,
+        'name': timer.name,
+        'remaining_seconds': timer.remaining(),
+        'paused': timer.paused
+    }
+    socketio.emit('timer_update', current_state, room=request.sid)
 
-    def send_updates():
-        last_state = None
-        while True:
-            current_state = {
-                'id': timer.id,
-                'name': timer.name,
-                'remaining_seconds': timer.remaining(),
-                'paused': timer.paused
-            }
-            
-            # Only send updates when something changes
-            if last_state != current_state:
-                socketio.emit('timer_update', current_state, room=sid)
-                last_state = current_state.copy()
-            
-            # Stop if timer has finished
-            if current_state['remaining_seconds'] <= 0 and not timer.paused:
-                break
-                
-            time.sleep(0.5)  # Check for updates more frequently
-
-    socketio.start_background_task(send_updates)
+# We don't need to handle disconnect for individual timers
+# All timers remain active as long as the application is running
 
 if __name__ == '__main__':
     app = create_app()
