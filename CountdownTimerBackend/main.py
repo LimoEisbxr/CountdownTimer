@@ -31,24 +31,47 @@ def create_app():
             with db.engine.begin() as conn:
                 conn.execute(sqlalchemy.text("ALTER TABLE timers ADD COLUMN name TEXT NOT NULL DEFAULT ''"))
 
+        # add paused to timers if missing
+        cols = [c['name'] for c in insp.get_columns('timers')]
+        if 'paused' not in cols:
+            with db.engine.begin() as conn:
+                # default TRUE → 1
+                conn.execute(sqlalchemy.text("ALTER TABLE timers ADD COLUMN paused BOOLEAN NOT NULL DEFAULT 1"))
+
     app.register_blueprint(bp)
     return app
 
 @socketio.on('join_timer')
 def handle_join_timer(data):
     from models import Project, Timer
+    if not data or not isinstance(data, dict):
+        return
     project = Project.query.get_or_404(data.get('project_id'))
-    timer   = Timer.query.filter_by(id=data.get('timer_id'), project=project).first_or_404()
+    timer = Timer.query.filter_by(id=data.get('timer_id'), project=project).first_or_404()
+
+    sid = request.sid
+
     def send_updates():
+        last_state = None
         while True:
-            rem = timer.remaining()
-            socketio.emit('timer_update', {
+            current_state = {
                 'id': timer.id,
                 'name': timer.name,
-                'remaining_seconds': rem
-            }, room=request.sid)
-            if rem <= 0: break
-            time.sleep(1)
+                'remaining_seconds': timer.remaining(),
+                'paused': timer.paused
+            }
+            
+            # Only send updates when something changes
+            if last_state != current_state:
+                socketio.emit('timer_update', current_state, room=sid)
+                last_state = current_state.copy()
+            
+            # Stop if timer has finished
+            if current_state['remaining_seconds'] <= 0 and not timer.paused:
+                break
+                
+            time.sleep(0.5)  # Check for updates more frequently
+
     socketio.start_background_task(send_updates)
 
 if __name__ == '__main__':

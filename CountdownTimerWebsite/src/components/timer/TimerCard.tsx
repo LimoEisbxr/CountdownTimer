@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { io, Socket } from 'socket.io-client';
 
 interface Timer {
     id: string;
@@ -11,6 +12,7 @@ interface Timer {
 }
 
 interface TimerCardProps {
+    projectId: string;
     id: string;
     name: string;
     duration: number; // in seconds
@@ -20,14 +22,9 @@ interface TimerCardProps {
 }
 
 // Dynamically generate API and WebSocket base URLs from the current browser location
-const { protocol, hostname, port } = window.location;
-const apiProtocol = protocol === 'https:' ? 'https:' : 'http:';
-const wsProtocol = 'wss:';
-const apiPort = port ? `:${port}` : '';
-const API_BASE_URL = `${apiProtocol}//${hostname}${apiPort}/api/projects/1`;
-const WS_BASE_URL = `${wsProtocol}//${hostname}${apiPort}`;
 
 function TimerCard({
+    projectId,
     id,
     name = 'Countdown Timer',
     duration = 60,
@@ -35,6 +32,10 @@ function TimerCard({
     onTimerDeleted,
     onTimerUpdated,
 }: TimerCardProps) {
+    const { hostname } = window.location;
+    const API_BASE_URL = `/api/projects/${projectId}`;
+    const WS_BASE_URL = `wss://${hostname}`;
+
     // Timer state
     const [timeLeft, setTimeLeft] = useState(duration);
     const [isRunning, setIsRunning] = useState(false);
@@ -58,10 +59,12 @@ function TimerCard({
     const [editedDuration, setEditedDuration] = useState(duration);
 
     // WebSocket reference
-    const wsRef = useRef<WebSocket | null>(null);
+    const wsRef = useRef<Socket | null>(null);
 
     // Format time as HH:MM:SS
     const formatTime = (seconds: number): string => {
+        console.log('Formatting time:', seconds);
+
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
         const secs = seconds % 60;
@@ -73,69 +76,19 @@ function TimerCard({
         ].join(':');
     };
 
-    // Initialize WebSocket connection
-    useEffect(() => {
-        // Connect to WebSocket for this timer
-        const wsUrl = `${WS_BASE_URL}/timers/${id}`;
-        wsRef.current = new WebSocket(wsUrl);
-
-        wsRef.current.onopen = () => {
-            console.log(`WebSocket connection established for timer ${id}`);
-        };
-
-        wsRef.current.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-
-                // Update timer state based on server data
-                if (data.timeLeft !== undefined) {
-                    setTimeLeft(data.timeLeft);
-                }
-
-                if (data.isRunning !== undefined) {
-                    setIsRunning(data.isRunning);
-                }
-
-                if (data.isPaused !== undefined) {
-                    setIsPaused(data.isPaused);
-                }
-            } catch (err) {
-                console.error('Error parsing WebSocket message:', err);
-            }
-        };
-
-        wsRef.current.onerror = (error) => {
-            console.error('WebSocket error:', error);
-            setError('Connection error. Timer updates may not be accurate.');
-        };
-
-        wsRef.current.onclose = () => {
-            console.log('WebSocket connection closed');
-        };
-
-        // Fetch initial timer state
-        fetchTimerState();
-
-        return () => {
-            if (wsRef.current) {
-                wsRef.current.close();
-            }
-        };
-    }, [id]);
-
     // Fetch current timer state from server
-    const fetchTimerState = async () => {
+    const fetchTimerState = useCallback(async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(`${API_BASE_URL}/timers/${id}`);
+            const response = await fetch(API_BASE_URL);
 
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
 
-            const timerData = await response.json();
+            let timerData = await response.json();
+            timerData = timerData.timers;
 
-            setTimeLeft(timerData.timeLeft || timerData.duration);
             setIsRunning(timerData.isRunning || false);
             setIsPaused(timerData.isPaused || false);
             setIsLoading(false);
@@ -144,7 +97,59 @@ function TimerCard({
             setError('Failed to load timer data');
             setIsLoading(false);
         }
-    };
+    }, [API_BASE_URL]);
+
+    // Initialize WebSocket connection
+    useEffect(() => {
+        // Connect to Socket.IO server
+        const socket = io(WS_BASE_URL, {
+            path: '/socket.io',
+            transports: ['websocket'],
+            query: { EIO: '4', transport: 'websocket' },
+        });
+
+        wsRef.current = socket;
+
+        // Join the specific timer room
+        socket.on('connect', () => {
+            console.log(`Socket.IO connection established for timer ${id}`);
+
+            socket.emit('join_timer', {
+                project_id: projectId,
+                timer_id: id,
+            });
+        });
+
+        // Listen for timer updates
+        socket.on('timer_update', (data) => {
+            console.log('Received timer update:', data);
+            // Update timer state based on server data
+            if (data.remaining_seconds !== undefined) {
+                setTimeLeft(data.remaining_seconds);
+            }
+
+            setIsPaused(data.paused);
+            setIsRunning(!data.paused);
+
+            console.log(`isRunning: ${isRunning}, isPaused: ${isPaused}`);
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error('Socket.IO connection error:', error);
+            setError('Connection error. Timer updates may not be accurate.');
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Socket.IO connection closed');
+        });
+
+        return () => {
+            if (wsRef.current) {
+                socket.disconnect();
+                console.log(`Socket.IO connection closed for timer ${id}`);
+            }
+        };
+    }, [id, projectId, WS_BASE_URL, isPaused, isRunning]);
 
     // Timer control functions with server communication
     const startTimer = async () => {
@@ -272,7 +277,9 @@ function TimerCard({
                 }
 
                 // Update local state with new values from server
-                setTimeLeft(responseData.timeLeft || responseData.duration);
+                setTimeLeft(
+                    responseData.remaining_seconds || responseData.duration
+                );
 
                 setIsUpdating(false);
                 closeEditModal();

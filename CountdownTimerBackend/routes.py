@@ -59,11 +59,46 @@ def create_timer(project_id):
 @bp.route('/api/projects/<int:project_id>/timers/<int:timer_id>', methods=['GET'])
 def get_timer(project_id, timer_id):
     project = Project.query.get_or_404(project_id)
-    timer = Timer.query.filter_by(id=timer_id, project=project).first_or_404()
+    t = Timer.query.filter_by(id=timer_id, project=project).first_or_404()
     return jsonify({
-        'id': timer.id,
-        'name': timer.name,
-        'remaining_seconds': timer.remaining()
+        'id': t.id,
+        'name': t.name,
+        'remaining_seconds': t.remaining(),
+        'paused': t.paused
+    }), 200
+    
+@bp.route('/api/projects/<int:project_id>/timers/<int:timer_id>/start', methods=['POST'])
+def start_timer(project_id, timer_id):
+    project = Project.query.get_or_404(project_id)
+    t = Timer.query.filter_by(id=timer_id, project=project).first_or_404()
+    if not t.paused:
+        abort(400, 'Timer already running')
+    
+    # Start/resume the timer
+    t.start()
+    
+    return jsonify({
+        'id': t.id,
+        'name': t.name,
+        'duration': t.duration,
+        'remaining_seconds': t.remaining(),
+        'paused': t.paused
+    }), 200
+
+@bp.route('/api/projects/<int:project_id>/timers/<int:timer_id>/pause', methods=['POST'])
+def pause_timer(project_id, timer_id):
+    project = Project.query.get_or_404(project_id)
+    t = Timer.query.filter_by(id=timer_id, project=project).first_or_404()
+    if t.paused:
+        abort(400, 'Timer already paused')
+    # capture remaining seconds and pause
+    t.pause()
+    db.session.commit()
+    return jsonify({
+        'id': t.id,
+        'name': t.name,
+        'remaining_seconds': t.remaining(),
+        'paused': t.paused
     }), 200
 
 @bp.route('/api/projects/<int:project_id>/timers/<int:timer_id>', methods=['PUT'])
@@ -71,7 +106,7 @@ def edit_timer(project_id, timer_id):
     project = Project.query.get_or_404(project_id)
     timer = Timer.query.filter_by(id=timer_id, project=project).first_or_404()
     data = request.get_json() or {}
-    if data.get('name'): t.name = data['name']
+    if data.get('name'): timer.name = data['name']
     new_duration = data.get('duration')
     if new_duration is None:
         abort(400, 'New duration (in seconds) required')
@@ -93,10 +128,23 @@ def delete_timer(project_id, timer_id):
     db.session.commit()
     return jsonify({'message': 'Timer deleted'}), 200
 
+@bp.route('/api/projects/<int:project_id>/timers/<int:timer_id>/reset', methods=['POST'])
+def reset_timer(project_id, timer_id):
+    project = Project.query.get_or_404(project_id)
+    t = Timer.query.filter_by(id=timer_id, project=project).first_or_404()
+    # Reset the timer properly
+    t.reset()
+    return jsonify({
+        'id': t.id,
+        'name': t.name,
+        'duration': t.duration,
+        'remaining_seconds': t.remaining_seconds,
+        'paused': t.paused
+    }), 200
+
 @bp.route('/api/projects/<int:project_id>', methods=['GET'])
 def get_project(project_id):
     project = Project.query.get_or_404(project_id)
-    # collect all timers for this project
     timers = Timer.query.filter_by(project=project).all()
     return jsonify({
         'id': project.id,
@@ -104,13 +152,14 @@ def get_project(project_id):
         'description': project.description,
         'timers': [
             {
-                'id': t.id,
-                'name': t.name,
-                'duration': t.duration,
-                'remaining_seconds': t.remaining(),
-                'end_time': t.end_time.isoformat() if t.end_time else None
+                'id': x.id,
+                'name': x.name,
+                'duration': x.duration,
+                'remaining_seconds': x.remaining(),
+                'end_time': x.end_time.isoformat(),
+                'paused': x.paused
             }
-            for t in timers
+            for x in timers
         ]
     }), 200
 

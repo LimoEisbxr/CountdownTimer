@@ -1,2 +1,7 @@
 Flask
 Flask-SQLAlchemy
+# Flask-SocketIO
+flask-sockets
+gevent
+gevent-websocket
+gunicorn

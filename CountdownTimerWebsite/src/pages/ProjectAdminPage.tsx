@@ -6,7 +6,6 @@ import CreateTimerButton from '../components/timer/CreateTimerButton';
 interface ProjectData {
     name: string;
     description: string;
-    // other fields as needed
 }
 
 interface Timer {
@@ -143,6 +142,7 @@ function ProjectAdminPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {timers.map((timer) => (
                                 <TimerCard
+                                    projectId={projectID!}
                                     key={timer.id}
                                     id={timer.id}
                                     name={timer.name}
