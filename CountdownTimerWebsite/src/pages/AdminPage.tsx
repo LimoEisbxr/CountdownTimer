@@ -64,6 +64,8 @@ function AdminPage() {
                                     <AdminProjectCard
                                         key={project.id}
                                         project={project}
+                                        onProjectUpdated={fetchProjects}
+                                        onProjectDeleted={fetchProjects}
                                     />
                                 ))}
                             </div>

@@ -79,14 +79,6 @@ function AdminProjectCard({
             });
     };
 
-    const openDeleteConfirmation = () => {
-        setShowDeleteModal(true);
-    };
-
-    const closeDeleteConfirmation = () => {
-        setShowDeleteModal(false);
-    };
-
     const confirmDelete = () => {
         setIsDeleting(true);
 
