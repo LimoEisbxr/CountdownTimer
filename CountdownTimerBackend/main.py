@@ -22,13 +22,21 @@ def background_task():
                 try:
                     timer = Timer.query.get(timer_id)
                     if timer:
+                        remaining_time = timer.remaining()
+                        
+                        # Auto-pause timer when it reaches zero
+                        if remaining_time <= 0 and not timer.paused:
+                            timer.pause()
+                            # print(f"Timer {timer.name} (ID: {timer.id}) has finished and been paused.")
+                        
                         current_state = {
                             'id': timer.id,
                             'name': timer.name,
-                            'remaining_seconds': timer.remaining(),
+                            'remaining_seconds': remaining_time,
                             'paused': timer.paused,
                             'duration': timer.duration,
-                            'description': timer.description
+                            'description': timer.description,
+                            'project_id': timer.project_id
                         }
                         # Broadcast to all clients
                         socketio.emit('timer_update', current_state)
@@ -82,10 +90,39 @@ def create_app():
 def handle_join_timer(data):
     from models import Project, Timer
     if not data or not isinstance(data, dict):
+        socketio.emit('error', {
+            'code': 400,
+            'message': 'Invalid request data'
+        }, room=request.sid)
         return
     
-    project = Project.query.get_or_404(data.get('project_id'))
-    timer = Timer.query.filter_by(id=data.get('timer_id'), project=project).first_or_404()
+    project_id = data.get('project_id')
+    timer_id = data.get('timer_id')
+    
+    if not project_id or not timer_id:
+        socketio.emit('error', {
+            'code': 400,
+            'message': 'Missing project_id or timer_id'
+        }, room=request.sid)
+        return
+    
+    # Check if project exists
+    project = Project.query.get(project_id)
+    if not project:
+        socketio.emit('error', {
+            'code': 404,
+            'message': f'Project with id {project_id} not found'
+        }, room=request.sid)
+        return
+    
+    # Check if timer exists in the project
+    timer = Timer.query.filter_by(id=timer_id, project=project).first()
+    if not timer:
+        socketio.emit('error', {
+            'code': 404,
+            'message': f'Timer with id {timer_id} not found in project {project_id}'
+        }, room=request.sid)
+        return
 
     # Add timer to active timers
     active_timers.add(timer.id)
@@ -95,9 +132,21 @@ def handle_join_timer(data):
         'id': timer.id,
         'name': timer.name,
         'remaining_seconds': timer.remaining(),
-        'paused': timer.paused
+        'paused': timer.paused,
+        'duration': timer.duration,
+        'description': timer.description,
+        'project_id': timer.project_id,
     }
     socketio.emit('timer_update', current_state, room=request.sid)
+
+@socketio.on_error_default
+def default_error_handler(e):
+    """Handle any unhandled errors in WebSocket connections"""
+    print(f"WebSocket error: {e}")
+    socketio.emit('error', {
+        'code': 500,
+        'message': 'An unexpected error occurred'
+    }, room=request.sid)
 
 # We don't need to handle disconnect for individual timers
 # All timers remain active as long as the application is running

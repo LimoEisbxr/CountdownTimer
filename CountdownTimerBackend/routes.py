@@ -90,7 +90,8 @@ class routes:
                 'id': t.id,
                 'name': t.name,
                 'remaining_seconds': t.remaining(),
-                'paused': t.paused
+                'paused': t.paused,
+                'project_id': t.project_id
             }, room=timer_room)
             
             # Return response to API caller
@@ -107,8 +108,7 @@ class routes:
             project = Project.query.get_or_404(project_id)
             t = Timer.query.filter_by(id=timer_id, project=project).first_or_404()
             if t.paused:
-                abort(400, 'Timer already paused')
-            # capture remaining seconds and pause
+                abort(400, 'Timer already paused')            # capture remaining seconds and pause
             t.pause()
             db.session.commit()
             
@@ -117,7 +117,8 @@ class routes:
                 'id': t.id,
                 'name': t.name,
                 'remaining_seconds': t.remaining(),
-                'paused': t.paused
+                'paused': t.paused,
+                'project_id': t.project_id
             }, room=timer_room)
             
             return jsonify({
@@ -135,10 +136,10 @@ class routes:
             if data.get('name'): timer.name = data['name']
             if data.get('description') is not None: timer.description = data['description']
             new_duration = data.get('duration')
-            if new_duration is None:
-                abort(400, 'New duration (in seconds) required')
-            
-            timer.duration = new_duration
+            if new_duration is not None:
+                timer.duration = new_duration
+                timer.calculate_end_time_and_remaining_seconds()
+
             db.session.commit()
             
             timer.calculate_end_time_and_remaining_seconds()
@@ -149,7 +150,8 @@ class routes:
                 'name': timer.name,
                 'description': timer.description,
                 'remaining_seconds': timer.remaining(),
-                'paused': timer.paused
+                'paused': timer.paused,
+                'project_id': timer.project_id
             }, room=timer_room)
             
             return jsonify({
@@ -180,7 +182,8 @@ class routes:
                 'id': t.id,
                 'name': t.name,
                 'remaining_seconds': t.remaining(),
-                'paused': t.paused
+                'paused': t.paused,
+                'project_id': t.project_id
             }, room=timer_room)
             
             return jsonify({

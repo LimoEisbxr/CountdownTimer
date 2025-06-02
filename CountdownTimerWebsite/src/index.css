@@ -1,5 +1,14 @@
 @import 'tailwindcss';
 
+/* Set Roboto as the default font for the entire application */
+* {
+    font-family: 'Roboto', sans-serif;
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+}
+
 @keyframes fadeIn {
     from {
         opacity: 0;

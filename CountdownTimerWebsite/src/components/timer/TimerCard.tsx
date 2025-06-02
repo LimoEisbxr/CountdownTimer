@@ -38,6 +38,10 @@ function TimerCard({
 
     // Timer state
     const [currentDuration, setCurrentDuration] = useState(duration);
+    const [currentName, setCurrentName] = useState(name);
+    const [currentDescription, setCurrentDescription] = useState(
+        description || ''
+    );
     const [timeLeft, setTimeLeft] = useState(duration);
     const [isRunning, setIsRunning] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
@@ -132,6 +136,8 @@ function TimerCard({
 
                 setIsPaused(data.paused);
                 setIsRunning(!data.paused);
+                setCurrentName(data.name);
+                setCurrentDescription(data.description);
 
                 // Update duration state if provided
                 if (data.duration) {
@@ -157,7 +163,15 @@ function TimerCard({
                 console.log(`Socket.IO connection closed for timer ${id}`);
             }
         };
-    }, [id, projectId, WS_BASE_URL, isPaused, isRunning]);
+    }, [
+        id,
+        projectId,
+        WS_BASE_URL,
+        isPaused,
+        isRunning,
+        currentName,
+        currentDescription,
+    ]);
 
     // Timer control functions with server communication
     const startTimer = async () => {
@@ -229,8 +243,8 @@ function TimerCard({
 
     // Modal control functions
     const handleEditTimer = () => {
-        setEditedName(name);
-        setEditedDescription(description || '');
+        setEditedName(currentName);
+        setEditedDescription(currentDescription || '');
         setEditedDuration(currentDuration);
         setShowEditModal(true);
     };
@@ -341,10 +355,42 @@ function TimerCard({
 
                 {/* Timer content */}
                 <div className="p-6">
-                    {/* Timer name */}
-                    <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-3 line-clamp-2">
-                        {name}
-                    </h2>
+                    {/* Timer name and view button */}
+                    <div className="flex justify-between items-start mb-3">
+                        <h2 className="text-xl font-semibold text-gray-800 dark:text-white line-clamp-2 flex-1 mr-2">
+                            {currentName}
+                        </h2>
+                        <button
+                            className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-50 flex-shrink-0"
+                            onClick={() => {
+                                window.open(
+                                    `/view-timer/${projectId}-${id}`,
+                                    '_blank'
+                                );
+                            }}
+                        >
+                            <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                ></path>
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                ></path>
+                            </svg>
+                        </button>
+                    </div>
 
                     {/* Error message */}
                     {error && (
@@ -356,13 +402,11 @@ function TimerCard({
                     )}
 
                     {/* Timer description */}
-                    {description && (
-                        <div className="mt-2 mb-4">
-                            <p className="text-gray-600 dark:text-gray-300 line-clamp-3">
-                                {description}
-                            </p>
-                        </div>
-                    )}
+                    <div className="mt-2 mb-4 min-h-[3rem]">
+                        <p className="text-gray-600 dark:text-gray-300 line-clamp-3">
+                            {currentDescription || '\u00A0'}
+                        </p>
+                    </div>
 
                     {/* Timer display */}
                     <div className="mt-4 mb-4">
@@ -384,19 +428,116 @@ function TimerCard({
                     </div>
 
                     {/* Control buttons */}
-                    <div className="flex flex-wrap gap-2 mb-4">
-                        {!isRunning && !isPaused && (
+                    <div className="flex justify-between items-center mb-4">
+                        {/* Left side - Start/Resume/Pause button */}
+                        <div className="flex gap-2">
+                            {!isRunning && !isPaused && (
+                                <button
+                                    onClick={startTimer}
+                                    disabled={isLoading}
+                                    className={`px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 text-lg font-medium ${
+                                        isLoading
+                                            ? 'opacity-50 cursor-not-allowed'
+                                            : ''
+                                    }`}
+                                >
+                                    <svg
+                                        className="w-10 h-6"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth="2"
+                                            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                                        ></path>
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth="2"
+                                            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                        ></path>
+                                    </svg>
+                                </button>
+                            )}
+
+                            {isRunning && (
+                                <button
+                                    onClick={pauseTimer}
+                                    disabled={isLoading}
+                                    className={`px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-50 text-lg font-medium ${
+                                        isLoading
+                                            ? 'opacity-50 cursor-not-allowed'
+                                            : ''
+                                    }`}
+                                >
+                                    <svg
+                                        className="w-10 h-6"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth="2"
+                                            d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                        ></path>
+                                    </svg>
+                                </button>
+                            )}
+
+                            {isPaused && (
+                                <button
+                                    onClick={startTimer}
+                                    disabled={isLoading}
+                                    className={`px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 text-lg font-medium ${
+                                        isLoading
+                                            ? 'opacity-50 cursor-not-allowed'
+                                            : ''
+                                    }`}
+                                >
+                                    <svg
+                                        className="w-10 h-6"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth="2"
+                                            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                                        ></path>
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth="2"
+                                            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                        ></path>
+                                    </svg>
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Right side buttons */}
+                        <div className="flex gap-2">
                             <button
-                                onClick={startTimer}
+                                onClick={resetTimer}
                                 disabled={isLoading}
-                                className={`px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 ${
+                                className={`px-4 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50 ${
                                     isLoading
                                         ? 'opacity-50 cursor-not-allowed'
                                         : ''
                                 }`}
                             >
                                 <svg
-                                    className="w-4 h-4 mr-2"
+                                    className="w-6 h-6"
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
@@ -406,31 +547,17 @@ function TimerCard({
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
                                         strokeWidth="2"
-                                        d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                                    ></path>
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                                     ></path>
                                 </svg>
-                                Start
                             </button>
-                        )}
 
-                        {isRunning && (
                             <button
-                                onClick={pauseTimer}
-                                disabled={isLoading}
-                                className={`px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-50 ${
-                                    isLoading
-                                        ? 'opacity-50 cursor-not-allowed'
-                                        : ''
-                                }`}
+                                className="px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
+                                onClick={handleEditTimer}
                             >
                                 <svg
-                                    className="w-4 h-4 mr-2"
+                                    className="w-6 h-6"
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
@@ -440,25 +567,17 @@ function TimerCard({
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
                                         strokeWidth="2"
-                                        d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                                     ></path>
                                 </svg>
-                                Pause
                             </button>
-                        )}
 
-                        {isPaused && (
                             <button
-                                onClick={startTimer}
-                                disabled={isLoading}
-                                className={`px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 ${
-                                    isLoading
-                                        ? 'opacity-50 cursor-not-allowed'
-                                        : ''
-                                }`}
+                                className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-50"
+                                onClick={openDeleteConfirmation}
                             >
                                 <svg
-                                    className="w-4 h-4 mr-2"
+                                    className="w-6 h-6"
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
@@ -468,58 +587,11 @@ function TimerCard({
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
                                         strokeWidth="2"
-                                        d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                                    ></path>
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                                     ></path>
                                 </svg>
-                                Resume
                             </button>
-                        )}
-
-                        <button
-                            onClick={resetTimer}
-                            disabled={isLoading}
-                            className={`px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50 ${
-                                isLoading ? 'opacity-50 cursor-not-allowed' : ''
-                            }`}
-                        >
-                            <svg
-                                className="w-4 h-4 mr-2"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                                xmlns="http://www.w3.org/2000/svg"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2"
-                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                                ></path>
-                            </svg>
-                            Reset
-                        </button>
-                    </div>
-
-                    {/* Admin buttons */}
-                    <div className="flex justify-end gap-2 mt-4">
-                        <button
-                            className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-gray-700 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:ring-opacity-50"
-                            onClick={handleEditTimer}
-                        >
-                            Edit
-                        </button>
-                        <button
-                            className="px-3 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-gray-700 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400 focus:ring-opacity-50"
-                            onClick={openDeleteConfirmation}
-                        >
-                            Delete
-                        </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -656,25 +728,35 @@ function TimerCard({
                                     className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-indigo-600 border border-transparent rounded-md shadow-sm hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
                                 >
                                     {isUpdating ? (
-                                        'Updating...'
+                                        <svg
+                                            className="w-4 h-4 animate-spin"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth="2"
+                                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                            ></path>
+                                        </svg>
                                     ) : (
-                                        <>
-                                            <svg
-                                                className="w-4 h-4 mr-2"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                viewBox="0 0 24 24"
-                                                xmlns="http://www.w3.org/2000/svg"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth="2"
-                                                    d="M5 13l4 4L19 7"
-                                                ></path>
-                                            </svg>
-                                            Update Timer
-                                        </>
+                                        <svg
+                                            className="w-4 h-4"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth="2"
+                                                d="M5 13l4 4L19 7"
+                                            ></path>
+                                        </svg>
                                     )}
                                 </button>
                             </div>
@@ -726,8 +808,8 @@ function TimerCard({
 
                         <p className="text-gray-600 dark:text-gray-300 mb-6">
                             Are you sure you want to delete{' '}
-                            <span className="font-semibold">{name}</span>? This
-                            action cannot be undone.
+                            <span className="font-semibold">{currentName}</span>
+                            ? This action cannot be undone.
                         </p>
 
                         {error && (
@@ -754,25 +836,35 @@ function TimerCard({
                                 className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
                             >
                                 {isDeleting ? (
-                                    'Deleting...'
+                                    <svg
+                                        className="w-4 h-4 animate-spin"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth="2"
+                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                        ></path>
+                                    </svg>
                                 ) : (
-                                    <>
-                                        <svg
-                                            className="w-4 h-4 mr-2"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth="2"
-                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                            ></path>
-                                        </svg>
-                                        Delete Timer
-                                    </>
+                                    <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth="2"
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                        ></path>
+                                    </svg>
                                 )}
                             </button>
                         </div>
