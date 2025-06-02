@@ -136,13 +136,11 @@ class routes:
             if data.get('name'): timer.name = data['name']
             if data.get('description') is not None: timer.description = data['description']
             new_duration = data.get('duration')
-            if new_duration is not None:
+            if new_duration is not None and new_duration != timer.duration:
                 timer.duration = new_duration
                 timer.calculate_end_time_and_remaining_seconds()
-
+        
             db.session.commit()
-            
-            timer.calculate_end_time_and_remaining_seconds()
             
             timer_room = f'timer_{timer.id}'
             self.socketio.emit('timer_update', {
