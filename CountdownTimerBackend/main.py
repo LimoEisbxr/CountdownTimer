@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from flask_socketio import SocketIO
 from database import db
 from routes import routes, bp
@@ -53,6 +53,31 @@ def create_app():
 
     db.init_app(app)
     socketio.init_app(app)
+
+    # Add error handlers for API responses
+    @app.errorhandler(404)
+    def not_found(error):
+        return jsonify({
+            'error': 'Not Found',
+            'message': 'The requested resource was not found',
+            'code': 404
+        }), 404
+
+    @app.errorhandler(400)
+    def bad_request(error):
+        return jsonify({
+            'error': 'Bad Request',
+            'message': str(error.description) if hasattr(error, 'description') else 'Invalid request',
+            'code': 400
+        }), 400
+
+    @app.errorhandler(500)
+    def internal_error(error):
+        return jsonify({
+            'error': 'Internal Server Error',
+            'message': 'An unexpected error occurred',
+            'code': 500
+        }), 500
 
     # Start background timer task
     global thread
