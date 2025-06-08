@@ -20,7 +20,7 @@ def background_task():
             from models import Timer
             for timer_id in list(active_timers):
                 try:
-                    timer = Timer.query.get(timer_id)
+                    timer = db.session.get(Timer, timer_id)
                     if timer:
                         remaining_time = timer.remaining()
                         
@@ -132,7 +132,7 @@ def handle_join_timer(data):
         return
     
     # Check if project exists
-    project = Project.query.get(project_id)
+    project = db.session.get(Project, project_id)
     if not project:
         socketio.emit('error', {
             'code': 404,

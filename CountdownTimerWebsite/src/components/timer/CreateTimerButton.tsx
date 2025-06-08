@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { parseTimeInput } from '../../utils/timeParser';
 
 interface CreateTimerButtonProps {
     projectId: string;
@@ -13,12 +14,27 @@ function CreateTimerButton({
     const [isClosing, setIsClosing] = useState(false);
     const [timerName, setTimerName] = useState('');
     const [timerDescription, setTimerDescription] = useState('');
-    const [timerDuration, setTimerDuration] = useState(60); // Default 60 seconds
+    const [timerDurationInput, setTimerDurationInput] = useState('60'); // String input for flexible parsing
+    const [durationError, setDurationError] = useState<string>('');
     const { createTimer } = useCreateTimer(onTimerCreated);
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        createTimer(projectId, timerName, timerDescription, timerDuration);
+
+        // Parse the duration input on form submission
+        const parseResult = parseTimeInput(timerDurationInput);
+
+        if (!parseResult.isValid) {
+            setDurationError(parseResult.error || 'Invalid duration format');
+            return;
+        }
+
+        createTimer(
+            projectId,
+            timerName,
+            timerDescription,
+            parseResult.seconds
+        );
         resetForm();
         closeModal();
     };
@@ -26,7 +42,8 @@ function CreateTimerButton({
     const resetForm = () => {
         setTimerName('');
         setTimerDescription('');
-        setTimerDuration(60);
+        setTimerDurationInput('60');
+        setDurationError('');
     };
 
     const closeModal = () => {
@@ -35,6 +52,12 @@ function CreateTimerButton({
             setIsModalOpen(false);
             setIsClosing(false);
         }, 300);
+    };
+
+    // Get parsed duration for display purposes (but allow invalid input while typing)
+    const getParsedDuration = () => {
+        const parseResult = parseTimeInput(timerDurationInput);
+        return parseResult.isValid ? parseResult.seconds : 0;
     };
 
     return (
@@ -118,7 +141,6 @@ function CreateTimerButton({
                                     placeholder="Enter timer name"
                                 />
                             </div>
-
                             <div>
                                 <label
                                     htmlFor="timerDescription"
@@ -136,54 +158,80 @@ function CreateTimerButton({
                                     className="block w-full px-3 py-2 mt-1 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder-gray-400 dark:placeholder-gray-400"
                                     placeholder="Describe your timer"
                                 />
-                            </div>
-
+                            </div>{' '}
                             <div>
                                 <label
                                     htmlFor="timerDuration"
                                     className="block text-sm font-medium text-gray-700 dark:text-gray-300"
                                 >
-                                    Duration (seconds)
+                                    Duration
                                 </label>
                                 <input
-                                    type="number"
+                                    type="text"
                                     id="timerDuration"
-                                    value={timerDuration}
-                                    onChange={(e) =>
-                                        setTimerDuration(
-                                            Math.max(
-                                                1,
-                                                parseInt(e.target.value) || 0
-                                            )
-                                        )
-                                    }
-                                    min="1"
+                                    value={timerDurationInput}
+                                    onChange={(e) => {
+                                        setTimerDurationInput(e.target.value);
+                                        // Clear error when user starts typing
+                                        if (durationError) {
+                                            setDurationError('');
+                                        }
+                                    }}
                                     required
                                     className="block w-full px-3 py-2 mt-1 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder-gray-400 dark:placeholder-gray-400"
-                                    placeholder="Enter duration in seconds"
+                                    placeholder="e.g., 10m, 1h30m, 10:10, or 300"
                                 />
-                            </div>
-
-                            {/* Time conversion helper text */}
-                            <div className="text-xs text-gray-500 dark:text-gray-400 italic">
-                                {timerDuration >= 3600 ? (
-                                    <span>
-                                        {Math.floor(timerDuration / 3600)}h{' '}
-                                        {Math.floor(
-                                            (timerDuration % 3600) / 60
-                                        )}
-                                        m {timerDuration % 60}s
-                                    </span>
-                                ) : timerDuration >= 60 ? (
-                                    <span>
-                                        {Math.floor(timerDuration / 60)}m{' '}
-                                        {timerDuration % 60}s
-                                    </span>
-                                ) : (
-                                    <span>{timerDuration}s</span>
+                                {durationError && (
+                                    <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                                        {durationError}
+                                    </p>
                                 )}
                             </div>
-
+                            {/* Time conversion helper text */}
+                            <div className="text-xs text-gray-500 dark:text-gray-400 italic">
+                                {(() => {
+                                    const parsedDuration = getParsedDuration();
+                                    if (parsedDuration > 0) {
+                                        if (parsedDuration >= 3600) {
+                                            return (
+                                                <span>
+                                                    {Math.floor(
+                                                        parsedDuration / 3600
+                                                    )}
+                                                    h{' '}
+                                                    {Math.floor(
+                                                        (parsedDuration %
+                                                            3600) /
+                                                            60
+                                                    )}
+                                                    m {parsedDuration % 60}s
+                                                </span>
+                                            );
+                                        } else if (parsedDuration >= 60) {
+                                            return (
+                                                <span>
+                                                    {Math.floor(
+                                                        parsedDuration / 60
+                                                    )}
+                                                    m {parsedDuration % 60}s
+                                                </span>
+                                            );
+                                        } else {
+                                            return (
+                                                <span>{parsedDuration}s</span>
+                                            );
+                                        }
+                                    } else {
+                                        return (
+                                            <span>
+                                                Examples: "10m", "1h30m",
+                                                "1d2h", "10:10", "14:30" (until
+                                                time), or plain seconds
+                                            </span>
+                                        );
+                                    }
+                                })()}
+                            </div>
                             <div className="flex items-center justify-end gap-3 mt-6">
                                 <button
                                     type="button"

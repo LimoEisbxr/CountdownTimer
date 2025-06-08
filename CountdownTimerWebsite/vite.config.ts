@@ -5,6 +5,6 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
     plugins: [react(), tailwindcss()],
     server: {
-        allowedHosts: ['countdowntimer.limonadeundco.duckdns.org'],
+        allowedHosts: ['countdowntimer-dev.limonadeundco.duckdns.org'],
     },
 });

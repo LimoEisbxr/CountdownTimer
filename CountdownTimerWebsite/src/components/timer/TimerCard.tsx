@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { parseTimeInput } from '../../utils/timeParser';
 
 interface Timer {
     id: string;
@@ -54,14 +55,15 @@ function TimerCard({
     const [showEditModal, setShowEditModal] = useState(false);
     const [isClosingEdit, setIsClosingEdit] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [isUpdating, setIsUpdating] = useState(false);
-
-    // Edit form state
+    const [isUpdating, setIsUpdating] = useState(false); // Edit form state
     const [editedName, setEditedName] = useState(name);
     const [editedDescription, setEditedDescription] = useState(
         description || ''
     );
-    const [editedDuration, setEditedDuration] = useState(duration);
+    const [editedDurationInput, setEditedDurationInput] = useState(
+        duration.toString()
+    );
+    const [durationError, setDurationError] = useState<string>('');
 
     // WebSocket reference
     const wsRef = useRef<Socket | null>(null);
@@ -239,13 +241,12 @@ function TimerCard({
             setError('Failed to reset timer');
             setIsLoading(false);
         }
-    };
-
-    // Modal control functions
+    }; // Modal control functions
     const handleEditTimer = () => {
         setEditedName(currentName);
         setEditedDescription(currentDescription || '');
-        setEditedDuration(currentDuration);
+        setEditedDurationInput(currentDuration.toString());
+        setDurationError('');
         setShowEditModal(true);
     };
 
@@ -267,20 +268,27 @@ function TimerCard({
             setShowDeleteModal(false);
             setIsClosingDelete(false);
         }, 300);
-    };
-
-    // Form submission handlers with server communication
+    }; // Form submission handlers with server communication
     const submitEdit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setIsUpdating(true);
         setError(null);
+
+        // Parse the duration input on form submission
+        const parseResult = parseTimeInput(editedDurationInput);
+
+        if (!parseResult.isValid) {
+            setDurationError(parseResult.error || 'Invalid duration format');
+            setIsUpdating(false);
+            return;
+        }
 
         try {
             const updatedTimer = {
                 id,
                 name: editedName,
                 description: editedDescription,
-                duration: editedDuration,
+                duration: parseResult.seconds,
             };
 
             const response = await fetch(`${API_BASE_URL}/timers/${id}`, {
@@ -659,7 +667,6 @@ function TimerCard({
                                     placeholder="Enter timer name"
                                 />
                             </div>
-
                             <div>
                                 <label
                                     htmlFor="timerDescription"
@@ -677,34 +684,35 @@ function TimerCard({
                                     className="block w-full px-3 py-2 mt-1 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder-gray-400 dark:placeholder-gray-400"
                                     placeholder="Describe your timer"
                                 />
-                            </div>
-
+                            </div>{' '}
                             <div>
                                 <label
                                     htmlFor="timerDuration"
                                     className="block text-sm font-medium text-gray-700 dark:text-gray-300"
                                 >
-                                    Duration (seconds)
+                                    Duration
                                 </label>
                                 <input
-                                    type="number"
+                                    type="text"
                                     id="timerDuration"
-                                    value={editedDuration}
-                                    onChange={(e) =>
-                                        setEditedDuration(
-                                            Math.max(
-                                                1,
-                                                parseInt(e.target.value) || 0
-                                            )
-                                        )
-                                    }
-                                    min="1"
+                                    value={editedDurationInput}
+                                    onChange={(e) => {
+                                        setEditedDurationInput(e.target.value);
+                                        // Clear error when user starts typing
+                                        if (durationError) {
+                                            setDurationError('');
+                                        }
+                                    }}
                                     required
                                     className="block w-full px-3 py-2 mt-1 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder-gray-400 dark:placeholder-gray-400"
-                                    placeholder="Enter duration in seconds"
+                                    placeholder="e.g., 10m, 1h30m, 10:10, or 300"
                                 />
+                                {durationError && (
+                                    <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                                        {durationError}
+                                    </p>
+                                )}
                             </div>
-
                             {error && (
                                 <div className="p-2 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md">
                                     <p className="text-sm text-red-800 dark:text-red-300">
@@ -712,7 +720,6 @@ function TimerCard({
                                     </p>
                                 </div>
                             )}
-
                             <div className="flex items-center justify-end gap-3 mt-6">
                                 <button
                                     type="button"
