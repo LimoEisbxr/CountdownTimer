@@ -6,7 +6,11 @@ class Project(db.Model):
     id          = db.Column(db.Integer, primary_key=True)
     name        = db.Column(db.String(80), unique=True, nullable=False)
     description = db.Column(db.Text, nullable=True)
-    timers      = db.relationship('Timer', backref='project', lazy=True)
+    selected_timer_id = db.Column(db.Integer, db.ForeignKey('timers.id'), nullable=True)
+    
+    # Specify foreign_keys to resolve ambiguity
+    timers      = db.relationship('Timer', backref='project', lazy=True, foreign_keys='Timer.project_id')
+    selected_timer = db.relationship('Timer', foreign_keys=[selected_timer_id], post_update=True)
 
 class Timer(db.Model):
     __tablename__ = 'timers'

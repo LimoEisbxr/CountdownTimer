@@ -18,8 +18,10 @@ interface TimerCardProps {
     name: string;
     duration: number; // in seconds
     description?: string;
+    isSelected?: boolean;
     onTimerDeleted?: (id: string) => void;
     onTimerUpdated?: (timer: Timer) => void;
+    onTimerSelected?: (id: string) => void;
 }
 
 // Dynamically generate API and WebSocket base URLs from the current browser location
@@ -30,8 +32,10 @@ function TimerCard({
     name = 'Countdown Timer',
     duration = 60,
     description = '',
+    isSelected = false,
     onTimerDeleted,
     onTimerUpdated,
+    onTimerSelected,
 }: TimerCardProps) {
     const { hostname } = window.location;
     const API_BASE_URL = `/api/projects/${projectId}`;
@@ -66,12 +70,8 @@ function TimerCard({
     const [durationError, setDurationError] = useState<string>('');
 
     // WebSocket reference
-    const wsRef = useRef<Socket | null>(null);
-
-    // Format time as HH:MM:SS
+    const wsRef = useRef<Socket | null>(null); // Format time as HH:MM:SS
     const formatTime = (seconds: number): string => {
-        console.log('Formatting time:', seconds);
-
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
         const secs = seconds % 60;
@@ -125,11 +125,9 @@ function TimerCard({
                 project_id: projectId,
                 timer_id: id,
             });
-        });
-
-        // Listen for timer updates
+        }); // Listen for timer updates
         socket.on('timer_update', (data) => {
-            if (data.id === id) {
+            if (String(data.id) === String(id)) {
                 console.log('Received timer update:', data);
                 // Update timer state based on server data
                 if (data.remaining_seconds !== undefined) {
@@ -146,7 +144,11 @@ function TimerCard({
                     setCurrentDuration(data.duration);
                 }
 
-                console.log(`isRunning: ${isRunning}, isPaused: ${isPaused}`);
+                console.log(
+                    `Timer ${id}: isRunning: ${!data.paused}, isPaused: ${
+                        data.paused
+                    }`
+                );
             }
         });
 
@@ -219,7 +221,6 @@ function TimerCard({
             setIsLoading(false);
         }
     };
-
     const resetTimer = async () => {
         try {
             setIsLoading(true);
@@ -240,6 +241,104 @@ function TimerCard({
             console.error('Error resetting timer:', err);
             setError('Failed to reset timer');
             setIsLoading(false);
+        }
+    };
+    const selectTimer = async () => {
+        console.log(
+            'DEBUG: ========== FRONTEND SELECT/DESELECT TIMER =========='
+        );
+        console.log(
+            'DEBUG: selectTimer called for timer ID:',
+            id,
+            'in project:',
+            projectId
+        );
+        console.log('DEBUG: API_BASE_URL:', API_BASE_URL);
+        console.log('DEBUG: onTimerSelected callback:', onTimerSelected);
+        console.log('DEBUG: isSelected current state:', isSelected);
+
+        try {
+            setIsLoading(true);
+
+            let response;
+            let actionType;
+
+            if (isSelected) {
+                // Deselect the timer
+                actionType = 'deselect';
+                console.log(
+                    'DEBUG: Deselecting timer - Full URL:',
+                    `${API_BASE_URL}/deselect-timer`
+                );
+                response = await fetch(`${API_BASE_URL}/deselect-timer`, {
+                    method: 'POST',
+                });
+            } else {
+                // Select the timer
+                actionType = 'select';
+                console.log(
+                    'DEBUG: Selecting timer - Full URL:',
+                    `${API_BASE_URL}/select-timer/${id}`
+                );
+                response = await fetch(`${API_BASE_URL}/select-timer/${id}`, {
+                    method: 'POST',
+                });
+            }
+
+            console.log(
+                `DEBUG: ${actionType}Timer response status:`,
+                response.status
+            );
+            console.log(`DEBUG: ${actionType}Timer response ok:`, response.ok);
+
+            if (response.ok) {
+                const responseData = await response.json();
+                console.log(
+                    `DEBUG: ${actionType}Timer response data:`,
+                    responseData
+                );
+
+                if (onTimerSelected) {
+                    if (isSelected) {
+                        // Deselecting - pass null or empty string to indicate no selection
+                        console.log(
+                            'DEBUG: Calling onTimerSelected with null (deselect)'
+                        );
+                        onTimerSelected('');
+                    } else {
+                        // Selecting - pass the timer ID
+                        console.log(
+                            'DEBUG: Calling onTimerSelected with timer ID:',
+                            id
+                        );
+                        onTimerSelected(id);
+                    }
+                    console.log('DEBUG: onTimerSelected callback executed');
+                } else {
+                    console.log(
+                        'DEBUG: ERROR - onTimerSelected callback is not defined'
+                    );
+                }
+            } else {
+                const errorData = await response.json();
+                console.error(
+                    `DEBUG: Failed to ${actionType} timer - response not ok:`,
+                    errorData
+                );
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            setIsLoading(false);
+            setError(null);
+            console.log(
+                `DEBUG: ========== FRONTEND ${actionType.toUpperCase()} TIMER SUCCESS ==========`
+            );
+        } catch (err) {
+            console.error('DEBUG: Error selecting timer:', err);
+            setError('Failed to select timer');
+            setIsLoading(false);
+            console.log(
+                'DEBUG: ========== FRONTEND SELECT TIMER ERROR =========='
+            );
         }
     }; // Modal control functions
     const handleEditTimer = () => {
@@ -354,52 +453,108 @@ function TimerCard({
         0,
         Math.min(100, ((currentDuration - timeLeft) / currentDuration) * 100)
     );
-
     return (
         <>
-            <div className="relative bg-white/90 dark:bg-gray-800/90 shadow-md rounded-lg overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all duration-300 transform hover:scale-[1.01]">
+            <div
+                className={`relative shadow-md rounded-lg overflow-hidden border hover:shadow-lg transition-all duration-300 transform hover:scale-[1.01] ${
+                    isSelected
+                        ? 'bg-green-50/90 dark:bg-green-900/20 border-green-300 dark:border-green-600'
+                        : 'bg-white/90 dark:bg-gray-800/90 border-gray-100 dark:border-gray-700'
+                }`}
+            >
                 {/* Gradient header */}
                 <div className="h-3 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
 
                 {/* Timer content */}
                 <div className="p-6">
-                    {/* Timer name and view button */}
+                    {' '}
+                    {/* Timer name and action buttons */}
                     <div className="flex justify-between items-start mb-3">
                         <h2 className="text-xl font-semibold text-gray-800 dark:text-white line-clamp-2 flex-1 mr-2">
                             {currentName}
                         </h2>
-                        <button
-                            className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-50 flex-shrink-0"
-                            onClick={() => {
-                                window.open(
-                                    `/view-timer/${projectId}-${id}`,
-                                    '_blank'
-                                );
-                            }}
-                        >
-                            <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                                xmlns="http://www.w3.org/2000/svg"
+                        <div className="flex gap-2 flex-shrink-0">
+                            {' '}
+                            <button
+                                className={`px-3 py-1.5 rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-opacity-50 ${
+                                    isSelected
+                                        ? 'bg-green-500 hover:bg-green-600 text-white focus:ring-green-400'
+                                        : 'bg-gray-500 hover:bg-gray-600 text-white focus:ring-gray-400'
+                                }`}
+                                onClick={selectTimer}
+                                title={
+                                    isSelected
+                                        ? 'Deselect Timer'
+                                        : 'Select Timer'
+                                }
                             >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2"
-                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                ></path>
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2"
-                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                                ></path>
-                            </svg>
-                        </button>
+                                {isSelected ? (
+                                    // Checkmark icon when selected
+                                    <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth="2"
+                                            d="M5 13l4 4L19 7"
+                                        ></path>
+                                    </svg>
+                                ) : (
+                                    // Bookmark icon when not selected
+                                    <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth="2"
+                                            d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                                        ></path>
+                                    </svg>
+                                )}
+                            </button>
+                            <button
+                                className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-50"
+                                onClick={() => {
+                                    window.open(
+                                        `/view-timer/${projectId}-${id}`,
+                                        '_blank'
+                                    );
+                                }}
+                                title="View Timer"
+                            >
+                                <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="2"
+                                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                    ></path>
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="2"
+                                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                    ></path>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
-
                     {/* Error message */}
                     {error && (
                         <div className="mb-4 p-2 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md">
@@ -408,14 +563,12 @@ function TimerCard({
                             </p>
                         </div>
                     )}
-
                     {/* Timer description */}
                     <div className="mt-2 mb-4 min-h-[3rem]">
                         <p className="text-gray-600 dark:text-gray-300 line-clamp-3">
                             {currentDescription || '\u00A0'}
                         </p>
                     </div>
-
                     {/* Timer display */}
                     <div className="mt-4 mb-4">
                         <div className="text-3xl font-mono text-center font-bold text-gray-800 dark:text-white mb-2">
@@ -434,7 +587,6 @@ function TimerCard({
                             ></div>
                         </div>
                     </div>
-
                     {/* Control buttons */}
                     <div className="flex justify-between items-center mb-4">
                         {/* Left side - Start/Resume/Pause button */}

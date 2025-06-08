@@ -1,17 +1,15 @@
 import { useParams } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-function ViewTimer() {
-    const { timerId } = useParams<{ timerId: string }>();
+function ViewSelectedTimer() {
+    const { projectId } = useParams<{ projectId: string }>();
 
-    // Extract projectId from timerId (assuming format: projectId-timerId)
-    // You may need to adjust this based on your URL structure
-    const projectId = timerId?.split('-')[0] || '';
-    const actualTimerId = timerId?.split('-')[1] || timerId || '';
+    console.log('DEBUG: ViewSelectedTimer - projectId:', projectId);
 
     // Timer state
     const [timer, setTimer] = useState({
+        id: '',
         name: 'Loading...',
         description: '',
         duration: 0,
@@ -20,13 +18,13 @@ function ViewTimer() {
         isPaused: false,
     });
     const [isLoading, setIsLoading] = useState(true);
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     // WebSocket reference
     const wsRef = useRef<Socket | null>(null);
 
     const { hostname } = window.location;
-    // const API_BASE_URL = `/api/projects/${projectId}`;
     const WS_BASE_URL = `wss://${hostname}`;
 
     // Format time as HH:MM:SS
@@ -40,11 +38,93 @@ function ViewTimer() {
             minutes.toString().padStart(2, '0'),
             secs.toString().padStart(2, '0'),
         ].join(':');
-    };
+    }; // Fetch selected timer data
+    const fetchSelectedTimer = useCallback(async () => {
+        if (!projectId) {
+            console.log('DEBUG: No projectId available');
+            return;
+        }
 
-    // Initialize WebSocket connection
+        console.log('DEBUG: Fetching selected timer for project:', projectId);
+        try {
+            // Only show loading animation on initial load
+            if (isInitialLoad) {
+                setIsLoading(true);
+            }
+            const url = `/api/projects/${projectId}/selected-timer`;
+            console.log('DEBUG: Making API call to:', url);
+
+            const response = await fetch(url);
+            console.log('DEBUG: Response status:', response.status);
+            console.log('DEBUG: Response ok:', response.ok);
+            if (!response.ok) {
+                if (response.status === 404) {
+                    const errorData = await response.json();
+                    console.log('DEBUG: 404 error data:', errorData);
+                    setError(
+                        errorData.message ||
+                            'No timer selected for this project'
+                    );
+                } else {
+                    console.log(
+                        'DEBUG: Non-404 error, status:',
+                        response.status
+                    );
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                setIsLoading(false);
+                setIsInitialLoad(false);
+                return;
+            }
+
+            const timerData = await response.json();
+            console.log('DEBUG: Timer data received:', timerData); // Check if the selected timer has changed
+            const newTimerId = timerData.id.toString();
+            if (timer.id && timer.id !== '' && timer.id !== newTimerId) {
+                console.log(
+                    'DEBUG: Selected timer changed from',
+                    timer.id,
+                    'to',
+                    newTimerId
+                );
+                // Don't show loading animation for timer changes, just update silently
+            }
+
+            setTimer({
+                id: newTimerId,
+                name: timerData.name,
+                description: timerData.description || '',
+                duration: timerData.duration,
+                timeLeft: timerData.remaining_seconds,
+                isRunning: !timerData.paused,
+                isPaused: timerData.paused,
+            });
+            setError(null);
+            setIsLoading(false);
+            setIsInitialLoad(false);
+        } catch (err) {
+            console.error('Error fetching selected timer:', err);
+            setError('Failed to load selected timer data');
+            setIsLoading(false);
+            setIsInitialLoad(false);
+        }
+    }, [projectId, timer.id, isInitialLoad]); // Fetch selected timer on component mount and set up polling
     useEffect(() => {
-        if (!actualTimerId || !projectId) return;
+        fetchSelectedTimer();
+
+        // Set up polling to check for selected timer changes every 2 seconds
+        const pollInterval = setInterval(() => {
+            fetchSelectedTimer();
+        }, 2000);
+
+        return () => {
+            clearInterval(pollInterval);
+        };
+    }, [fetchSelectedTimer]);
+
+    // Initialize WebSocket connection for the selected timer (only after we have timer data)
+    useEffect(() => {
+        if (!projectId || !timer.id || timer.id === '') return;
 
         // Connect to Socket.IO server
         const socket = io(WS_BASE_URL, {
@@ -57,33 +137,26 @@ function ViewTimer() {
 
         // Join the specific timer room
         socket.on('connect', () => {
-            setIsLoading(true);
             console.log(
-                `Socket.IO connection established for timer ${actualTimerId}`
+                `Socket.IO connection established for selected timer ${timer.id}`
             );
             socket.emit('join_timer', {
                 project_id: projectId,
-                timer_id: actualTimerId,
+                timer_id: timer.id,
             });
-        });
-
-        // Listen for timer updates
+        }); // Listen for timer updates
         socket.on('timer_update', (data) => {
-            if (data.id == actualTimerId) {
-                console.log('Received timer update:', data);
+            if (data.id == timer.id) {
+                console.log('Received selected timer update:', data);
                 setTimer((prev) => ({
                     ...prev,
-                    timeLeft:
-                        data.remaining_seconds !== undefined
-                            ? data.remaining_seconds
-                            : prev.timeLeft,
-                    isPaused: data.paused,
+                    name: data.name,
+                    description: data.description || '',
+                    duration: data.duration,
+                    timeLeft: data.remaining_seconds,
                     isRunning: !data.paused,
-                    duration: data.duration || prev.duration,
-                    name: data.name || prev.name,
-                    description: data.description || prev.description,
+                    isPaused: data.paused,
                 }));
-                setIsLoading(false);
             }
         });
 
@@ -98,13 +171,11 @@ function ViewTimer() {
 
         return () => {
             if (wsRef.current) {
-                // socket.disconnect();
-                console.log(
-                    `Socket.IO connection closed for timer ${actualTimerId}`
-                );
+                wsRef.current.disconnect();
+                wsRef.current = null;
             }
         };
-    }, [actualTimerId, projectId, WS_BASE_URL]);
+    }, [projectId, timer.id, WS_BASE_URL]);
 
     // Progress calculation
     const progress = Math.max(
@@ -114,17 +185,38 @@ function ViewTimer() {
             ((timer.duration - timer.timeLeft) / timer.duration) * 100
         )
     );
-    if (isLoading && !timer.name) {
+    if (error) {
         return (
             <div className="flex flex-col items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mb-6"></div>
-                <p className="text-gray-600 dark:text-gray-400 text-xl">
-                    Loading timer...
-                </p>
+                <div className="text-center p-8">
+                    <div className="text-6xl mb-4">⚠️</div>
+                    <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+                        No Selected Timer
+                    </h1>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">
+                        {error}
+                    </p>
+                    <button
+                        onClick={() => window.history.back()}
+                        className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                    >
+                        Go Back
+                    </button>
+                </div>
             </div>
         );
     }
 
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+                <p className="text-gray-600 dark:text-gray-400">
+                    Loading selected timer...
+                </p>
+            </div>
+        );
+    }
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 h-screen">
             <div className="w-[calc(100vw-16px)] h-[calc(100vh-16px)] bg-white/90 dark:bg-gray-800/90 shadow-2xl rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-700 m-2 flex justify-center items-center">
@@ -132,7 +224,7 @@ function ViewTimer() {
                     {/* Header */}
                     <div className="mb-16">
                         <div className="inline-flex items-center gap-3 mb-8 px-6 py-3 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-lg font-medium">
-                            🎯 Timer View
+                            📌 Selected Timer
                         </div>
                         <h1 className="text-8xl font-bold text-gray-800 dark:text-white mb-8 leading-tight">
                             {timer.name}
@@ -144,25 +236,10 @@ function ViewTimer() {
                         )}
                     </div>
 
-                    {/* Error message */}
-                    {error && (
-                        <div className="mb-12 p-6 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
-                            <p className="text-red-800 dark:text-red-300 text-center text-xl">
-                                {error}
-                            </p>
-                        </div>
-                    )}
-
                     {/* Timer Display */}
                     <div className="mb-16">
                         <div className="text-9xl font-mono font-bold text-gray-800 dark:text-white mb-12 tracking-wider leading-none">
-                            {isLoading ? (
-                                <span className="opacity-50">Loading...</span>
-                            ) : timer.timeLeft === 0 ? (
-                                'Ende'
-                            ) : (
-                                formatTime(timer.timeLeft)
-                            )}
+                            {formatTime(timer.timeLeft)}
                         </div>
 
                         {/* Progress Bar */}
@@ -172,7 +249,7 @@ function ViewTimer() {
                                     timer.timeLeft === 0
                                         ? 'bg-red-500'
                                         : timer.isRunning
-                                        ? 'bg-gradient-to-r from-blue-500 to-indigo-600'
+                                        ? 'bg-gradient-to-r from-green-400 to-green-600'
                                         : 'bg-gradient-to-r from-yellow-400 to-yellow-600'
                                 }`}
                                 style={{ width: `${progress}%` }}
@@ -189,7 +266,7 @@ function ViewTimer() {
                                     timer.timeLeft === 0
                                         ? 'text-red-600 dark:text-red-400'
                                         : timer.isRunning
-                                        ? 'text-blue-600 dark:text-blue-400'
+                                        ? 'text-green-600 dark:text-green-400'
                                         : 'text-yellow-600 dark:text-yellow-400'
                                 }`}
                             >
@@ -204,7 +281,7 @@ function ViewTimer() {
 
                     {/* Footer */}
                     <div className="text-xl text-gray-500 dark:text-gray-400">
-                        <p>Individual Timer View</p>
+                        <p>Project Timer View</p>
                         <p className="mt-2">
                             Duration: {formatTime(timer.duration)} | Progress:{' '}
                             {Math.round(progress)}%
@@ -216,4 +293,4 @@ function ViewTimer() {
     );
 }
 
-export default ViewTimer;
+export default ViewSelectedTimer;

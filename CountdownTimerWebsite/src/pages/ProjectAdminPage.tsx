@@ -6,10 +6,11 @@ import CreateTimerButton from '../components/timer/CreateTimerButton';
 interface ProjectData {
     name: string;
     description: string;
+    selected_timer_id?: string | number | null;
 }
 
 interface Timer {
-    id: string;
+    id: string | number;
     name: string;
     description: string;
     duration: number;
@@ -19,6 +20,7 @@ function ProjectAdminPage() {
     const { projectID } = useParams<{ projectID: string }>();
     const [projectData, setProjectData] = useState<ProjectData | null>(null);
     const [timers, setTimers] = useState<Timer[]>([]);
+    const [selectedTimerId, setSelectedTimerId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -39,6 +41,11 @@ function ProjectAdminPage() {
             })
             .then((data) => {
                 setProjectData(data);
+                setSelectedTimerId(
+                    data.selected_timer_id
+                        ? String(data.selected_timer_id)
+                        : null
+                );
                 setIsLoading(false);
                 setTimers(data.timers || []); // Assuming timers are part of the project data
             })
@@ -51,20 +58,52 @@ function ProjectAdminPage() {
                 setIsLoading(false);
             });
     };
-
     const handleTimerDeleted = (timerId: string) => {
         // Update local state to remove the deleted timer
         setTimers((prevTimers) =>
-            prevTimers.filter((timer) => timer.id !== timerId)
+            prevTimers.filter((timer) => String(timer.id) !== timerId)
         );
     };
-
-    const handleTimerUpdated = (updatedTimer: Timer) => {
+    const handleTimerUpdated = (updatedTimer: {
+        id: string;
+        name: string;
+        description: string;
+        duration: number;
+    }) => {
         // Update local state with the updated timer
         setTimers((prevTimers) =>
             prevTimers.map((timer) =>
-                timer.id === updatedTimer.id ? updatedTimer : timer
+                String(timer.id) === updatedTimer.id
+                    ? { ...timer, ...updatedTimer, id: timer.id }
+                    : timer
             )
+        );
+    };
+    const handleTimerSelected = (timerId: string) => {
+        console.log(
+            'DEBUG: ========== PROJECT ADMIN handleTimerSelected =========='
+        );
+        console.log(
+            'DEBUG: handleTimerSelected called with timer ID:',
+            timerId
+        );
+        console.log('DEBUG: Previous selected timer ID:', selectedTimerId);
+        console.log('DEBUG: Project data before update:', projectData);
+
+        // Handle deselection (empty string means deselect)
+        const newSelectedTimerId = timerId === '' ? null : timerId;
+
+        // Update local state immediately for instant visual feedback
+        setSelectedTimerId(newSelectedTimerId);
+
+        // Also update the project data state to reflect the selection
+        setProjectData((prev) =>
+            prev ? { ...prev, selected_timer_id: newSelectedTimerId } : null
+        );
+
+        console.log('DEBUG: Updated selected timer ID to:', newSelectedTimerId);
+        console.log(
+            'DEBUG: ========== PROJECT ADMIN handleTimerSelected COMPLETE =========='
         );
     };
 
@@ -140,18 +179,29 @@ function ProjectAdminPage() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {timers.map((timer) => (
-                                <TimerCard
-                                    projectId={projectID!}
-                                    key={timer.id}
-                                    id={timer.id}
-                                    name={timer.name}
-                                    description={timer.description}
-                                    duration={timer.duration}
-                                    onTimerDeleted={handleTimerDeleted}
-                                    onTimerUpdated={handleTimerUpdated}
-                                />
-                            ))}
+                            {timers.map((timer) => {
+                                const timerIdStr = String(timer.id);
+                                const selectedIdStr = String(
+                                    selectedTimerId || ''
+                                );
+                                const isTimerSelected =
+                                    selectedIdStr === timerIdStr;
+
+                                return (
+                                    <TimerCard
+                                        projectId={projectID!}
+                                        key={timerIdStr}
+                                        id={timerIdStr}
+                                        name={timer.name}
+                                        description={timer.description}
+                                        duration={timer.duration}
+                                        isSelected={isTimerSelected}
+                                        onTimerDeleted={handleTimerDeleted}
+                                        onTimerUpdated={handleTimerUpdated}
+                                        onTimerSelected={handleTimerSelected}
+                                    />
+                                );
+                            })}
                         </div>
                     )}
                 </div>

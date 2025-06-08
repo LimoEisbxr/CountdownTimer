@@ -100,13 +100,17 @@ def create_app():
         cols = [c['name'] for c in insp.get_columns('timers')]
         if 'name' not in cols:
             with db.engine.begin() as conn:
-                conn.execute(sqlalchemy.text("ALTER TABLE timers ADD COLUMN name TEXT NOT NULL DEFAULT ''"))
-
-        # add paused to timers if missing
+                conn.execute(sqlalchemy.text("ALTER TABLE timers ADD COLUMN name TEXT NOT NULL DEFAULT ''"))        # add paused to timers if missing
         cols = [c['name'] for c in insp.get_columns('timers')]
         if 'paused' not in cols:
             with db.engine.begin() as conn:
                 conn.execute(sqlalchemy.text("ALTER TABLE timers ADD COLUMN paused BOOLEAN NOT NULL DEFAULT 1"))
+
+        # add selected_timer_id to projects if missing
+        cols = [c['name'] for c in insp.get_columns('projects')]
+        if 'selected_timer_id' not in cols:
+            with db.engine.begin() as conn:
+                conn.execute(sqlalchemy.text("ALTER TABLE projects ADD COLUMN selected_timer_id INTEGER"))
 
     app.register_blueprint(bp)
     return app
