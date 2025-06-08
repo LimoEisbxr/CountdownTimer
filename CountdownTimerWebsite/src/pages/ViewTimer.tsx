@@ -124,91 +124,100 @@ function ViewTimer() {
             </div>
         );
     }
-
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 h-screen">
-            <div className="w-[calc(100vw-16px)] h-[calc(100vh-16px)] bg-white/90 dark:bg-gray-800/90 shadow-2xl rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-700 m-2 flex justify-center items-center">
-                <div className="text-center p-12 max-w-6xl w-full">
+        <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 h-screen w-screen overflow-hidden">
+            <div className="w-[calc(100vw-48px)] h-[calc(100vh-48px)] bg-white/90 dark:bg-gray-800/90 shadow-2xl rounded-3xl overflow-hidden border-4 border-gray-200 dark:border-gray-600 m-6 flex items-center justify-center">
+                {' '}
+                <div
+                    className="text-center p-8 w-full h-full flex flex-col items-center justify-center"
+                    style={{
+                        transform: `scale(${Math.min(
+                            1,
+                            Math.max(
+                                0.6,
+                                Math.min(
+                                    (window.innerWidth - 96) / 600,
+                                    (window.innerHeight - 96) / 500
+                                )
+                            )
+                        )})`,
+                        transformOrigin: 'center center',
+                    }}
+                >
                     {/* Header */}
-                    <div className="mb-16">
-                        <div className="inline-flex items-center gap-3 mb-8 px-6 py-3 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-lg font-medium">
-                            🎯 Timer View
-                        </div>
-                        <h1 className="text-8xl font-bold text-gray-800 dark:text-white mb-8 leading-tight">
+                    <div className="mb-[2vh] text-center">
+                        <h1 className="text-[clamp(3rem,8vw,9rem)] font-bold text-gray-800 dark:text-white mb-[1vh] leading-tight text-center">
                             {timer.name}
                         </h1>
                         {timer.description && (
-                            <p className="text-3xl text-gray-600 dark:text-gray-400 mb-12 leading-relaxed">
+                            <p className="text-[clamp(1.5rem,3vw,4rem)] text-gray-600 dark:text-gray-400 mb-[1vh] leading-relaxed text-center">
                                 {timer.description}
                             </p>
                         )}
                     </div>
-
                     {/* Error message */}
                     {error && (
-                        <div className="mb-12 p-6 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
-                            <p className="text-red-800 dark:text-red-300 text-center text-xl">
+                        <div className="mb-12 p-8 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg w-full">
+                            <p className="text-red-800 dark:text-red-300 text-center text-2xl">
                                 {error}
                             </p>
                         </div>
-                    )}
-
+                    )}{' '}
                     {/* Timer Display */}
-                    <div className="mb-16">
-                        <div className="text-9xl font-mono font-bold text-gray-800 dark:text-white mb-12 tracking-wider leading-none">
-                            {isLoading ? (
-                                <span className="opacity-50">Loading...</span>
-                            ) : timer.timeLeft === 0 ? (
-                                'Ende'
-                            ) : (
-                                formatTime(timer.timeLeft)
-                            )}
-                        </div>
-
-                        {/* Progress Bar */}
-                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-6 mb-8 overflow-hidden">
-                            <div
-                                className={`h-full transition-all duration-1000 ease-out ${
-                                    timer.timeLeft === 0
-                                        ? 'bg-red-500'
+                    <div className="w-full flex flex-col items-center justify-center max-w-[80vw] mx-auto">
+                        {/* Timer Container */}{' '}
+                        <div className="flex items-center justify-center w-full mb-[3vh]">
+                            <div className="text-[clamp(4rem,15vw,18rem)] font-mono font-bold text-gray-800 dark:text-white tracking-wider leading-none text-center flex items-center justify-center max-w-[75vw] overflow-hidden">
+                                {isLoading ? (
+                                    <span className="opacity-50">
+                                        Loading...
+                                    </span>
+                                ) : timer.timeLeft === 0 ? (
+                                    'Ende'
+                                ) : (
+                                    formatTime(timer.timeLeft)
+                                )}
+                            </div>{' '}
+                        </div>{' '}
+                        {/* Progress Bar Container */}{' '}
+                        <div className="w-full flex justify-center mb-[2vh]">
+                            <div className="w-[clamp(20rem,80vw,80rem)] bg-gray-200 dark:bg-gray-700 rounded-full h-[clamp(1.5rem,3vh,4rem)] overflow-hidden">
+                                {' '}
+                                <div
+                                    className={`h-full transition-all duration-1000 ease-out ${
+                                        timer.timeLeft === 0
+                                            ? 'bg-red-500'
+                                            : timer.isRunning
+                                            ? 'bg-gradient-to-r from-green-400 to-green-600'
+                                            : 'bg-gradient-to-r from-yellow-400 to-yellow-600'
+                                    }`}
+                                    style={{ width: `${progress}%` }}
+                                ></div>
+                            </div>
+                        </div>{' '}
+                        {/* Status Container */}
+                        <div className="flex items-center justify-center w-full">
+                            <div className="flex items-center justify-center gap-2 text-[clamp(1.5rem,4vw,4rem)] flex-wrap">
+                                <span className="text-gray-600 dark:text-gray-400">
+                                    Status:
+                                </span>{' '}
+                                <span
+                                    className={`font-semibold ${
+                                        timer.timeLeft === 0
+                                            ? 'text-red-600 dark:text-red-400'
+                                            : timer.isRunning
+                                            ? 'text-green-600 dark:text-green-400'
+                                            : 'text-yellow-600 dark:text-yellow-400'
+                                    }`}
+                                >
+                                    {timer.timeLeft === 0
+                                        ? 'Beendet'
                                         : timer.isRunning
-                                        ? 'bg-gradient-to-r from-blue-500 to-indigo-600'
-                                        : 'bg-gradient-to-r from-yellow-400 to-yellow-600'
-                                }`}
-                                style={{ width: `${progress}%` }}
-                            ></div>
+                                        ? 'Läuft'
+                                        : 'Pausiert'}
+                                </span>
+                            </div>
                         </div>
-
-                        {/* Status */}
-                        <div className="flex items-center justify-center gap-6 text-3xl flex-wrap">
-                            <span className="text-gray-600 dark:text-gray-400">
-                                Status:
-                            </span>
-                            <span
-                                className={`font-semibold ${
-                                    timer.timeLeft === 0
-                                        ? 'text-red-600 dark:text-red-400'
-                                        : timer.isRunning
-                                        ? 'text-blue-600 dark:text-blue-400'
-                                        : 'text-yellow-600 dark:text-yellow-400'
-                                }`}
-                            >
-                                {timer.timeLeft === 0
-                                    ? 'Finished'
-                                    : timer.isRunning
-                                    ? 'Running'
-                                    : 'Paused'}
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Footer */}
-                    <div className="text-xl text-gray-500 dark:text-gray-400">
-                        <p>Individual Timer View</p>
-                        <p className="mt-2">
-                            Duration: {formatTime(timer.duration)} | Progress:{' '}
-                            {Math.round(progress)}%
-                        </p>
                     </div>
                 </div>
             </div>
