@@ -411,9 +411,12 @@ function ViewSelectedTimer() {
                                     color:
                                         theme === 'dark'
                                             ? '#f9fafb'
-                                            : '#111827',                                }}
+                                            : '#111827',
+                                }}
                             >
-                                {timer.timeLeft === 0 ? 'Ende' : formatTime(timer.timeLeft)}
+                                {timer.timeLeft === 0
+                                    ? 'Ende'
+                                    : formatTime(timer.timeLeft)}
                             </div>
                         </div>
                         {/* Progress Bar Container */}

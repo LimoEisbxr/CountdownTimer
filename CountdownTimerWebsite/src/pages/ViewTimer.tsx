@@ -321,7 +321,8 @@ function ViewTimer() {
                                         theme === 'dark'
                                             ? '#f9fafb'
                                             : '#111827',
-                                }}                            >
+                                }}
+                            >
                                 {isLoading ? (
                                     <span className="opacity-50">
                                         Loading...
