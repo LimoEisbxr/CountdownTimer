@@ -1,14 +1,147 @@
 @import 'tailwindcss';
 
-/* Set Roboto as the default font for the entire application */
-* {
-    font-family: 'Roboto', sans-serif;
+/* Tailwind CSS v4 Dark Mode Configuration */
+@variant dark (&:where(.dark, .dark *));
+
+/* CSS Custom Properties for Theme Support */
+:root {
+    --font-family: 'Roboto', -webkit-system, BlinkMacSystemFont, 'Segoe UI',
+        system-ui, -apple-system, sans-serif;
+
+    /* Default theme colors (light mode) */
+    --bg-primary: #f9fafb;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #f3f4f6;
+    --text-primary: #111827;
+    --text-secondary: #374151;
+    --text-muted: #6b7280;
+    --border-color: #d1d5db;
+    --button-bg: #f3f4f6;
+    --button-hover: #e5e7eb;
+    --card-bg: #ffffff;
 }
 
-body {
-    font-family: 'Roboto', sans-serif;
+/* Dark mode CSS custom properties */
+:root.dark {
+    --bg-primary: #111827;
+    --bg-secondary: #1f2937;
+    --bg-tertiary: #374151;
+    --text-primary: #f9fafb;
+    --text-secondary: #e5e7eb;
+    --text-muted: #9ca3af;
+    --border-color: #4b5563;
+    --button-bg: #374151;
+    --button-hover: #4b5563;
+    --card-bg: #1f2937;
 }
 
+/* Tizen TV specific overrides and fallbacks */
+@media screen and (min-width: 1280px) {
+    /* Enhanced visibility for TV screens */
+    :root {
+        --border-width: 2px;
+        --button-min-size: 48px;
+        --focus-ring-width: 4px;
+    }
+
+    /* Ensure buttons are large enough for TV remote navigation */
+    button,
+    [role='button'] {
+        min-height: var(--button-min-size, 48px);
+        min-width: var(--button-min-size, 48px);
+        border-width: var(--border-width, 2px);
+    }
+
+    /* Enhanced focus indicators for TV navigation */
+    button:focus,
+    [role='button']:focus {
+        outline: var(--focus-ring-width, 4px) solid currentColor;
+        outline-offset: 2px;
+    }
+}
+
+/* Fallback styles using CSS custom properties for better TV compatibility */
+.bg-primary-fallback {
+    background-color: var(--bg-primary) !important;
+}
+
+.bg-secondary-fallback {
+    background-color: var(--bg-secondary) !important;
+}
+
+.text-primary-fallback {
+    color: var(--text-primary) !important;
+}
+
+.text-secondary-fallback {
+    color: var(--text-secondary) !important;
+}
+
+.border-fallback {
+    border-color: var(--border-color) !important;
+}
+
+/* Enhanced button styles for TV compatibility */
+.tv-button {
+    background-color: var(--button-bg) !important;
+    color: var(--text-primary) !important;
+    border: 2px solid var(--border-color) !important;
+    min-height: 48px !important;
+    min-width: 48px !important;
+    font-size: 16px !important;
+    font-weight: 500 !important;
+}
+
+.tv-button:hover,
+.tv-button:focus {
+    background-color: var(--button-hover) !important;
+    outline: 4px solid var(--text-primary) !important;
+    outline-offset: 2px !important;
+}
+
+/* Only apply enhanced focus styles on large screens (TV) */
+@media screen and (min-width: 1280px) {
+    /* Enhanced focus indicators for TV navigation */
+    .tv-button:focus,
+    .tv-enhanced-focus:focus {
+        outline: var(--focus-ring-width, 4px) solid currentColor;
+        outline-offset: 2px;
+    }
+}
+
+/* For non-TV devices, keep standard focus styles */
+@media screen and (max-width: 1279px) {
+    button:focus {
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
+    }
+
+    button:focus:not(:focus-visible) {
+        outline: none;
+    }
+}
+
+/* Fix for Tizen TV and WebKit browsers */
+button,
+input,
+select,
+textarea {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+}
+
+/* Smooth focus transitions for all browsers */
+*:focus {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+}
+
+*:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* Cross-browser animation keyframes */
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -63,4 +196,98 @@ body {
 
 .animate-scaleOut {
     animation: scaleOut 0.3s ease-in;
+}
+
+/* Spinner animation for all browsers */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+/* Improve hover states for non-touch devices */
+@media (hover: hover) and (pointer: fine) {
+    .hover\:scale-105:hover {
+        transform: scale(1.05);
+    }
+}
+
+/* Tizen TV specific improvements */
+@media screen and (min-width: 1280px) {
+    /* Larger touch targets for TV remote navigation */
+    button,
+    [role='button'] {
+        min-height: 48px;
+        min-width: 48px;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    :root {
+        --border-width: 2px;
+    }
+
+    .border {
+        border-width: var(--border-width, 1px);
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* WebKit-specific fixes */
+@supports (-webkit-appearance: none) {
+    input,
+    textarea,
+    select {
+        -webkit-appearance: none;
+        appearance: none;
+    }
+}
+
+/* Firefox-specific fixes */
+@-moz-document url-prefix() {
+    /* Fix for Firefox focus ring */
+    button::-moz-focus-inner {
+        border: 0;
+        padding: 0;
+    }
+}
+
+/* Progress bar specific styles to prevent theme override */
+.progress-bar-container {
+    position: relative !important;
+    overflow: hidden !important;
+    border-radius: 9999px !important;
+}
+
+.progress-bar-container.dark-theme {
+    background-color: #374151 !important;
+}
+
+.progress-bar-container.light-theme {
+    background-color: #e5e7eb !important;
+}
+
+.progress-bar-fill {
+    height: 100% !important;
+    border-radius: 9999px !important;
+    transition: width 1s ease-out !important;
 }

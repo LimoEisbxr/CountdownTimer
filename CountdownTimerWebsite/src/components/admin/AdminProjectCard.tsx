@@ -109,41 +109,61 @@ function AdminProjectCard({
 
     return (
         <>
-            <div className="relative bg-white/90 dark:bg-gray-800/90 shadow-md rounded-lg overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all duration-300 transform hover:scale-[1.01]">
+            {' '}
+            <div className="relative bg-white/90 dark:bg-gray-800/90 shadow-md rounded-lg overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all duration-300 transform hover:scale-[1.01] webkit-appearance-none backface-hidden">
                 {/* Gradient header */}
                 <div className="h-3 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
 
                 <div className="p-6">
                     {/* Project name */}
-                    <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-3 line-clamp-2">
+                    <h2
+                        className="text-xl font-semibold text-gray-800 dark:text-white mb-3 select-text"
+                        style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                        }}
+                    >
                         {project.name}
                     </h2>
-
                     {/* Project description */}
                     <div className="mt-4 mb-6">
-                        <p className="text-gray-600 dark:text-gray-300 line-clamp-3">
+                        <p
+                            className="text-gray-600 dark:text-gray-300 select-text"
+                            style={{
+                                display: '-webkit-box',
+                                WebkitLineClamp: 3,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                            }}
+                        >
                             {project.description || 'No description provided'}
                         </p>
-                    </div>
-
+                    </div>{' '}
                     {/* Action buttons */}
                     <div className="flex justify-end gap-2 mt-4">
                         <button
-                            className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-gray-700 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:ring-opacity-50"
+                            className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-gray-700 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:ring-opacity-50 webkit-appearance-none"
                             onClick={handleEditProject}
+                            type="button"
+                            aria-label="Edit project"
                         >
                             Edit
                         </button>
                         <button
-                            className="px-3 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-gray-700 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400 focus:ring-opacity-50"
+                            className="px-3 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-gray-700 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400 focus:ring-opacity-50 webkit-appearance-none"
                             onClick={openDeleteConfirmation}
+                            type="button"
+                            aria-label="Delete project"
                         >
                             Delete
                         </button>
                     </div>
                 </div>
             </div>
-
             {/* Edit Project Modal */}
             {showEditModal && (
                 <div
@@ -162,10 +182,12 @@ function AdminProjectCard({
                         <div className="relative mb-5">
                             <h3 className="text-xl font-bold text-gray-800 dark:text-white">
                                 Edit Project
-                            </h3>
+                            </h3>{' '}
                             <button
-                                className="absolute top-0 right-0 inline-flex items-center justify-center w-8 h-8 text-gray-600 rounded-full hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 focus:outline-none"
+                                className="absolute top-0 right-0 inline-flex items-center justify-center w-8 h-8 text-gray-600 rounded-full hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 focus:outline-none webkit-appearance-none"
                                 onClick={closeEditModal}
+                                type="button"
+                                aria-label="Close edit modal"
                             >
                                 <svg
                                     className="w-5 h-5"
@@ -192,7 +214,7 @@ function AdminProjectCard({
                                     className="block text-sm font-medium text-gray-700 dark:text-gray-300"
                                 >
                                     Project Name
-                                </label>
+                                </label>{' '}
                                 <input
                                     type="text"
                                     id="projectName"
@@ -201,8 +223,9 @@ function AdminProjectCard({
                                         setEditedName(e.target.value)
                                     }
                                     required
-                                    className="block w-full px-3 py-2 mt-1 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder-gray-400 dark:placeholder-gray-400"
+                                    className="block w-full px-3 py-2 mt-1 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder-gray-400 dark:placeholder-gray-400 webkit-appearance-none"
                                     placeholder="Enter project name"
+                                    autoComplete="off"
                                 />
                             </div>
 
@@ -212,7 +235,7 @@ function AdminProjectCard({
                                     className="block text-sm font-medium text-gray-700 dark:text-gray-300"
                                 >
                                     Description
-                                </label>
+                                </label>{' '}
                                 <textarea
                                     id="projectDescription"
                                     value={editedDescription}
@@ -220,8 +243,9 @@ function AdminProjectCard({
                                         setEditedDescription(e.target.value)
                                     }
                                     rows={3}
-                                    className="block w-full px-3 py-2 mt-1 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder-gray-400 dark:placeholder-gray-400"
+                                    className="block w-full px-3 py-2 mt-1 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder-gray-400 dark:placeholder-gray-400 webkit-appearance-none"
                                     placeholder="Describe your project"
+                                    autoComplete="off"
                                 />
                             </div>
 
@@ -266,7 +290,6 @@ function AdminProjectCard({
                     </div>
                 </div>
             )}
-
             {/* Custom Delete Confirmation Modal */}
             {showDeleteModal && (
                 <div

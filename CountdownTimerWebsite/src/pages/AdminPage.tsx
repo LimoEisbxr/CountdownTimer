@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import CreateProjectButton from '../components/admin/CreateProjectButton';
 import AdminProjectCard from '../components/admin/AdminProjectCard';
+import ThemeSwitcher from '../components/ThemeSwitcher';
 import type { Project } from '../types/Project';
 
 function AdminPage() {
@@ -27,19 +28,22 @@ function AdminPage() {
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+            {' '}
             {/* Top Navigation */}
             <header className="bg-white dark:bg-gray-800 shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between h-16">
+                    <div className="flex justify-between items-center h-16">
                         <div className="flex items-center">
                             <h1 className="text-xl font-bold text-gray-900 dark:text-white">
                                 Project Dashboard
                             </h1>
                         </div>
+                        <div className="flex items-center">
+                            <ThemeSwitcher />
+                        </div>
                     </div>
                 </div>
             </header>
-
             {/* Main Content */}
             <div className="py-6">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

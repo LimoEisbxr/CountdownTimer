@@ -2,6 +2,7 @@ import { useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import TimerCard from '../components/timer/TimerCard';
 import CreateTimerButton from '../components/timer/CreateTimerButton';
+import ThemeSwitcher from '../components/ThemeSwitcher';
 
 interface ProjectData {
     name: string;
@@ -109,6 +110,7 @@ function ProjectAdminPage() {
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+            {' '}
             {/* Header */}
             <header className="bg-white dark:bg-gray-800 shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -135,10 +137,12 @@ function ProjectAdminPage() {
                                       'No description available'}
                             </p>
                         </div>
+                        <div className="flex items-center">
+                            <ThemeSwitcher />
+                        </div>
                     </div>
                 </div>
             </header>
-
             {/* Main Content */}
             <div className="py-6">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

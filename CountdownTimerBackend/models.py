@@ -19,7 +19,7 @@ class Timer(db.Model):
     duration            = db.Column(db.Integer, nullable=False)      # seconds
     end_time            = db.Column(db.DateTime, nullable=False)
     paused              = db.Column(db.Boolean, nullable=False, default=True)
-    project_id          = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
+    project_id          = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True)
     remaining_seconds   = db.Column(db.Integer, nullable=False, default=0)
     description         = db.Column(db.Text, nullable=True)
 

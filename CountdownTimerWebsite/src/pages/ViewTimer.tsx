@@ -1,9 +1,13 @@
 import { useParams } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
+import ThemeSwitcher from '../components/ThemeSwitcher';
+import TizenTVDebugPanel from '../components/TizenTVDebugPanel';
+import { useTheme } from '../contexts/ThemeContext';
 
 function ViewTimer() {
     const { timerId } = useParams<{ timerId: string }>();
+    const { theme } = useTheme();
 
     // Extract projectId from timerId (assuming format: projectId-timerId)
     // You may need to adjust this based on your URL structure
@@ -104,7 +108,18 @@ function ViewTimer() {
                 );
             }
         };
-    }, [actualTimerId, projectId, WS_BASE_URL]);
+    }, [actualTimerId, projectId, WS_BASE_URL]); // Add Tizen-specific scaling (similar to ViewSelectedTimer)
+    const getTizenScale = () => {
+        const screenWidth = window.innerWidth;
+
+        // Base scale for different TV resolutions
+        if (screenWidth >= 3840) return 2.5; // 4K
+        if (screenWidth >= 1920) return 1.8; // Full HD
+        if (screenWidth >= 1280) return 1.2; // HD
+        return 1; // Fallback
+    };
+
+    const tizenScale = getTizenScale();
 
     // Progress calculation
     const progress = Math.max(
@@ -116,58 +131,197 @@ function ViewTimer() {
     );
     if (isLoading && !timer.name) {
         return (
-            <div className="flex flex-col items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
+            <div
+                className="flex flex-col items-center justify-center h-screen"
+                style={{
+                    backgroundColor: theme === 'dark' ? '#111827' : '#f9fafb',
+                    color: theme === 'dark' ? '#f9fafb' : '#111827',
+                }}
+            >
                 <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mb-6"></div>
-                <p className="text-gray-600 dark:text-gray-400 text-xl">
+                <p
+                    className="text-xl"
+                    style={{ color: theme === 'dark' ? '#9ca3af' : '#6b7280' }}
+                >
                     Loading timer...
                 </p>
             </div>
         );
     }
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 h-screen w-screen overflow-hidden">
-            <div className="w-[calc(100vw-48px)] h-[calc(100vh-48px)] bg-white/90 dark:bg-gray-800/90 shadow-2xl rounded-3xl overflow-hidden border-4 border-gray-200 dark:border-gray-600 m-6 flex items-center justify-center">
-                {' '}
+        <div
+            style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                width: '100vw',
+                height: '100vh',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                backgroundColor: theme === 'dark' ? '#111827' : '#f9fafb',
+            }}
+        >
+            {/* Theme Switcher - Fixed position */}
+            <div className="fixed top-4 right-4 z-10">
+                <ThemeSwitcher />
+            </div>
+
+            <div
+                style={{
+                    width: `${Math.min(
+                        window.innerWidth - 48,
+                        1200 * tizenScale
+                    )}px`,
+                    height: `${Math.min(
+                        window.innerHeight - 48,
+                        800 * tizenScale
+                    )}px`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backdropFilter: 'blur(10px)',
+                    backgroundColor:
+                        theme === 'dark'
+                            ? 'rgba(31, 41, 55, 0.95)'
+                            : 'rgba(255, 255, 255, 0.95)',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                    borderRadius: '24px',
+                    border: `4px solid ${
+                        theme === 'dark' ? '#4b5563' : '#e5e7eb'
+                    }`,
+                }}
+            >
                 <div
-                    className="text-center p-8 w-full h-full flex flex-col items-center justify-center"
+                    className="text-center p-8"
                     style={{
-                        transform: `scale(${Math.min(
-                            1,
-                            Math.max(
-                                0.6,
-                                Math.min(
-                                    (window.innerWidth - 96) / 600,
-                                    (window.innerHeight - 96) / 500
-                                )
-                            )
-                        )})`,
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transform: `scale(${Math.min(1, tizenScale * 0.8)})`,
                         transformOrigin: 'center center',
                     }}
                 >
                     {/* Header */}
-                    <div className="mb-[2vh] text-center">
-                        <h1 className="text-[clamp(3rem,8vw,9rem)] font-bold text-gray-800 dark:text-white mb-[1vh] leading-tight text-center">
+                    <div
+                        style={{
+                            marginBottom: '40px',
+                            textAlign: 'center',
+                            width: '100%',
+                        }}
+                    >
+                        <h1
+                            className="font-bold leading-tight"
+                            style={{
+                                fontSize: `${Math.min(144, 80 * tizenScale)}px`,
+                                marginBottom: '20px',
+                                lineHeight: '1.1',
+                                wordBreak: 'break-word',
+                                color: theme === 'dark' ? '#f9fafb' : '#111827',
+                            }}
+                        >
                             {timer.name}
                         </h1>
                         {timer.description && (
-                            <p className="text-[clamp(1.5rem,3vw,4rem)] text-gray-600 dark:text-gray-400 mb-[1vh] leading-relaxed text-center">
+                            <p
+                                className="leading-relaxed"
+                                style={{
+                                    fontSize: `${Math.min(
+                                        64,
+                                        32 * tizenScale
+                                    )}px`,
+                                    marginBottom: '20px',
+                                    lineHeight: '1.4',
+                                    color:
+                                        theme === 'dark'
+                                            ? '#e5e7eb'
+                                            : '#6b7280',
+                                }}
+                            >
                                 {timer.description}
                             </p>
                         )}
                     </div>
+
                     {/* Error message */}
                     {error && (
-                        <div className="mb-12 p-8 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg w-full">
-                            <p className="text-red-800 dark:text-red-300 text-center text-2xl">
+                        <div
+                            style={{
+                                marginBottom: '40px',
+                                padding: '20px',
+                                border: `2px solid ${
+                                    theme === 'dark' ? '#dc2626' : '#fecaca'
+                                }`,
+                                borderRadius: '12px',
+                                width: '100%',
+                                backgroundColor:
+                                    theme === 'dark'
+                                        ? 'rgba(127, 29, 29, 0.3)'
+                                        : '#fef2f2',
+                            }}
+                        >
+                            <p
+                                style={{
+                                    textAlign: 'center',
+                                    fontSize: `${Math.min(
+                                        48,
+                                        24 * tizenScale
+                                    )}px`,
+                                    color:
+                                        theme === 'dark'
+                                            ? '#fca5a5'
+                                            : '#991b1b',
+                                }}
+                            >
                                 {error}
                             </p>
                         </div>
-                    )}{' '}
+                    )}
+
                     {/* Timer Display */}
-                    <div className="w-full flex flex-col items-center justify-center max-w-[80vw] mx-auto">
-                        {/* Timer Container */}{' '}
-                        <div className="flex items-center justify-center w-full mb-[3vh]">
-                            <div className="text-[clamp(4rem,15vw,18rem)] font-mono font-bold text-gray-800 dark:text-white tracking-wider leading-none text-center flex items-center justify-center max-w-[75vw] overflow-hidden">
+                    <div
+                        style={{
+                            width: '100%',
+                            maxWidth: '90%',
+                            margin: '0 auto',
+                        }}
+                    >
+                        {/* Timer Container */}
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: '100%',
+                                marginBottom: '60px',
+                            }}
+                        >
+                            <div
+                                className="font-mono font-bold"
+                                style={{
+                                    fontSize: `${Math.min(
+                                        288,
+                                        150 * tizenScale
+                                    )}px`,
+                                    letterSpacing: '0.1em',
+                                    lineHeight: '1',
+                                    textAlign: 'center',
+                                    fontFamily:
+                                        'monospace, Consolas, "Courier New"',
+                                    fontWeight: 'bold',
+                                    display: 'block',
+                                    width: '100%',
+                                    overflow: 'hidden',
+                                    whiteSpace: 'nowrap',
+                                    color:
+                                        theme === 'dark'
+                                            ? '#f9fafb'
+                                            : '#111827',
+                                }}                            >
                                 {isLoading ? (
                                     <span className="opacity-50">
                                         Loading...
@@ -177,50 +331,125 @@ function ViewTimer() {
                                 ) : (
                                     formatTime(timer.timeLeft)
                                 )}
-                            </div>{' '}
-                        </div>{' '}
-                        {/* Progress Bar Container */}{' '}
-                        <div className="w-full flex justify-center mb-[2vh]">
-                            <div className="w-[clamp(20rem,80vw,80rem)] bg-gray-200 dark:bg-gray-700 rounded-full h-[clamp(1.5rem,3vh,4rem)] overflow-hidden">
-                                {' '}
+                            </div>
+                        </div>
+
+                        {/* Progress Bar Container */}
+                        <div
+                            style={{
+                                width: '100%',
+                                display: 'flex',
+                                justifyContent: 'center',
+                                marginBottom: '40px',
+                            }}
+                        >
+                            <div
+                                className={`progress-bar-container ${
+                                    theme === 'dark'
+                                        ? 'dark-theme'
+                                        : 'light-theme'
+                                }`}
+                                style={{
+                                    width: `${Math.min(
+                                        1280,
+                                        800 * tizenScale
+                                    )}px`,
+                                    height: `${Math.min(
+                                        64,
+                                        32 * tizenScale
+                                    )}px`,
+                                    backgroundColor:
+                                        theme === 'dark'
+                                            ? '#374151'
+                                            : '#e5e7eb',
+                                    borderRadius: '9999px',
+                                    position: 'relative',
+                                    overflow: 'hidden',
+                                }}
+                            >
                                 <div
-                                    className={`h-full transition-all duration-1000 ease-out ${
-                                        timer.timeLeft === 0
-                                            ? 'bg-red-500'
-                                            : timer.isRunning
-                                            ? 'bg-gradient-to-r from-green-400 to-green-600'
-                                            : 'bg-gradient-to-r from-yellow-400 to-yellow-600'
-                                    }`}
-                                    style={{ width: `${progress}%` }}
+                                    className="progress-bar-fill"
+                                    style={{
+                                        height: '100%',
+                                        width: `${progress}%`,
+                                        backgroundColor:
+                                            timer.timeLeft === 0
+                                                ? '#ef4444'
+                                                : timer.isRunning
+                                                ? '#22c55e'
+                                                : '#eab308',
+                                        transition: 'width 1s ease-out',
+                                        borderRadius: '9999px',
+                                        background:
+                                            timer.timeLeft === 0
+                                                ? '#ef4444'
+                                                : timer.isRunning
+                                                ? 'linear-gradient(to right, #4ade80, #16a34a)'
+                                                : 'linear-gradient(to right, #facc15, #ca8a04)',
+                                    }}
                                 ></div>
                             </div>
-                        </div>{' '}
+                        </div>
+
                         {/* Status Container */}
-                        <div className="flex items-center justify-center w-full">
-                            <div className="flex items-center justify-center gap-2 text-[clamp(1.5rem,4vw,4rem)] flex-wrap">
-                                <span className="text-gray-600 dark:text-gray-400">
-                                    Status:
-                                </span>{' '}
-                                <span
-                                    className={`font-semibold ${
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: '100%',
+                                flexWrap: 'wrap',
+                                gap: '10px',
+                            }}
+                        >
+                            <span
+                                style={{
+                                    fontSize: `${Math.min(
+                                        64,
+                                        40 * tizenScale
+                                    )}px`,
+                                    color:
+                                        theme === 'dark'
+                                            ? '#9ca3af'
+                                            : '#6b7280',
+                                }}
+                            >
+                                Status:
+                            </span>
+                            <span
+                                style={{
+                                    fontSize: `${Math.min(
+                                        64,
+                                        40 * tizenScale
+                                    )}px`,
+                                    fontWeight: '600',
+                                    color:
                                         timer.timeLeft === 0
-                                            ? 'text-red-600 dark:text-red-400'
+                                            ? theme === 'dark'
+                                                ? '#f87171'
+                                                : '#dc2626'
                                             : timer.isRunning
-                                            ? 'text-green-600 dark:text-green-400'
-                                            : 'text-yellow-600 dark:text-yellow-400'
-                                    }`}
-                                >
-                                    {timer.timeLeft === 0
-                                        ? 'Beendet'
-                                        : timer.isRunning
-                                        ? 'Läuft'
-                                        : 'Pausiert'}
-                                </span>
-                            </div>
+                                            ? theme === 'dark'
+                                                ? '#4ade80'
+                                                : '#16a34a'
+                                            : theme === 'dark'
+                                            ? '#facc15'
+                                            : '#ca8a04',
+                                }}
+                            >
+                                {timer.timeLeft === 0
+                                    ? 'Beendet'
+                                    : timer.isRunning
+                                    ? 'Läuft'
+                                    : 'Pausiert'}
+                            </span>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Tizen TV Debug Panel */}
+            <TizenTVDebugPanel />
         </div>
     );
 }
