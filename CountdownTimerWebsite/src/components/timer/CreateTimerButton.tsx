@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { parseTimeInput } from '../../utils/timeParser';
+import { Modal, FormField, TextAreaField, ActionButton } from '../common';
 
 interface CreateTimerButtonProps {
     projectId: string;
@@ -109,190 +110,117 @@ function CreateTimerButton({
                     </svg>
                     View Selected Timer
                 </button>{' '}
-            </div>
-
-            {isModalOpen && (
-                <div
-                    className={`fixed inset-0 z-50 flex items-center justify-center bg-white/30 dark:bg-gray-900/30 backdrop-blur-lg transition-opacity duration-300 ${
-                        isClosing ? 'opacity-0' : 'animate-fadeIn'
-                    }`}
-                >
-                    <div
-                        className={`w-full max-w-md p-6 mx-4 overflow-hidden transition-all transform bg-white/90 dark:bg-gray-800/90 rounded-xl shadow-xl backdrop-blur-sm duration-300 ${
-                            isClosing ? 'opacity-0 scale-95' : 'animate-scaleIn'
-                        }`}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="relative mb-5">
-                            <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-                                Create New Timer
-                            </h3>
-                            <button
-                                className="absolute top-0 right-0 inline-flex items-center justify-center w-8 h-8 text-gray-600 rounded-full hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 focus:outline-none"
-                                onClick={closeModal}
-                            >
-                                <svg
-                                    className="w-5 h-5"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    ></path>
-                                </svg>
-                                <span className="sr-only">Close</span>
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleSubmit} className="space-y-5">
-                            <div>
-                                <label
-                                    htmlFor="timerName"
-                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                >
-                                    Timer Name
-                                </label>
-                                <input
-                                    type="text"
-                                    id="timerName"
-                                    value={timerName}
-                                    onChange={(e) =>
-                                        setTimerName(e.target.value)
-                                    }
-                                    required
-                                    className="block w-full px-3 py-2 mt-1 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder-gray-400 dark:placeholder-gray-400"
-                                    placeholder="Enter timer name"
-                                />
-                            </div>
-                            <div>
-                                <label
-                                    htmlFor="timerDescription"
-                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                >
-                                    Description (optional)
-                                </label>
-                                <textarea
-                                    id="timerDescription"
-                                    value={timerDescription}
-                                    onChange={(e) =>
-                                        setTimerDescription(e.target.value)
-                                    }
-                                    rows={2}
-                                    className="block w-full px-3 py-2 mt-1 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder-gray-400 dark:placeholder-gray-400"
-                                    placeholder="Describe your timer"
-                                />
-                            </div>{' '}
-                            <div>
-                                <label
-                                    htmlFor="timerDuration"
-                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                >
-                                    Duration
-                                </label>
-                                <input
-                                    type="text"
-                                    id="timerDuration"
-                                    value={timerDurationInput}
-                                    onChange={(e) => {
-                                        setTimerDurationInput(e.target.value);
-                                        // Clear error when user starts typing
-                                        if (durationError) {
-                                            setDurationError('');
-                                        }
-                                    }}
-                                    required
-                                    className="block w-full px-3 py-2 mt-1 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder-gray-400 dark:placeholder-gray-400"
-                                    placeholder="e.g., 10m, 1h30m, 10:10, or 300"
-                                />
-                                {durationError && (
-                                    <p className="text-sm text-red-600 dark:text-red-400 mt-1">
-                                        {durationError}
-                                    </p>
-                                )}
-                            </div>
-                            {/* Time conversion helper text */}
-                            <div className="text-xs text-gray-500 dark:text-gray-400 italic">
-                                {(() => {
-                                    const parsedDuration = getParsedDuration();
-                                    if (parsedDuration > 0) {
-                                        if (parsedDuration >= 3600) {
-                                            return (
-                                                <span>
-                                                    {Math.floor(
-                                                        parsedDuration / 3600
-                                                    )}
-                                                    h{' '}
-                                                    {Math.floor(
-                                                        (parsedDuration %
-                                                            3600) /
-                                                            60
-                                                    )}
-                                                    m {parsedDuration % 60}s
-                                                </span>
-                                            );
-                                        } else if (parsedDuration >= 60) {
-                                            return (
-                                                <span>
-                                                    {Math.floor(
-                                                        parsedDuration / 60
-                                                    )}
-                                                    m {parsedDuration % 60}s
-                                                </span>
-                                            );
-                                        } else {
-                                            return (
-                                                <span>{parsedDuration}s</span>
-                                            );
-                                        }
-                                    } else {
-                                        return (
-                                            <span>
-                                                Examples: "10m", "1h30m",
-                                                "1d2h", "10:10", "14:30" (until
-                                                time), or plain seconds
-                                            </span>
-                                        );
-                                    }
-                                })()}
-                            </div>
-                            <div className="flex items-center justify-end gap-3 mt-6">
-                                <button
-                                    type="button"
-                                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600"
-                                    onClick={closeModal}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-indigo-600 border border-transparent rounded-md shadow-sm hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
-                                >
-                                    <svg
-                                        className="w-4 h-4 mr-2"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth="2"
-                                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                                        ></path>
-                                    </svg>
-                                    Create Timer
-                                </button>
-                            </div>{' '}
-                        </form>
+            </div>{' '}
+            <Modal
+                isOpen={isModalOpen}
+                isClosing={isClosing}
+                onClose={closeModal}
+                title="Create New Timer"
+            >
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    {' '}
+                    <FormField
+                        label="Timer Name"
+                        type="text"
+                        value={timerName}
+                        onChange={setTimerName}
+                        placeholder="Enter timer name"
+                        required
+                    />
+                    <TextAreaField
+                        label="Description (optional)"
+                        value={timerDescription}
+                        onChange={setTimerDescription}
+                        rows={2}
+                        placeholder="Describe your timer"
+                    />{' '}
+                    <div>
+                        <FormField
+                            label="Duration"
+                            type="text"
+                            value={timerDurationInput}
+                            onChange={(value) => {
+                                setTimerDurationInput(value);
+                                if (durationError) {
+                                    setDurationError('');
+                                }
+                            }}
+                            placeholder="e.g., 10m, 1h30m, 10:10, or 300"
+                            required
+                        />
+                        {durationError && (
+                            <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                                {durationError}
+                            </p>
+                        )}
                     </div>
-                </div>
-            )}
+                    {/* Time conversion helper text */}
+                    <div className="text-xs text-gray-500 dark:text-gray-400 italic">
+                        {(() => {
+                            const parsedDuration = getParsedDuration();
+                            if (parsedDuration > 0) {
+                                if (parsedDuration >= 3600) {
+                                    return (
+                                        <span>
+                                            {Math.floor(parsedDuration / 3600)}h{' '}
+                                            {Math.floor(
+                                                (parsedDuration % 3600) / 60
+                                            )}
+                                            m {parsedDuration % 60}s
+                                        </span>
+                                    );
+                                } else if (parsedDuration >= 60) {
+                                    return (
+                                        <span>
+                                            {Math.floor(parsedDuration / 60)}m{' '}
+                                            {parsedDuration % 60}s
+                                        </span>
+                                    );
+                                } else {
+                                    return <span>{parsedDuration}s</span>;
+                                }
+                            } else {
+                                return (
+                                    <span>
+                                        Examples: "10m", "1h30m", "1d2h",
+                                        "10:10", "14:30" (until time), or plain
+                                        seconds
+                                    </span>
+                                );
+                            }
+                        })()}
+                    </div>
+                    <div className="flex items-center justify-end gap-3 mt-6">
+                        <ActionButton
+                            type="button"
+                            variant="secondary"
+                            onClick={closeModal}
+                        >
+                            Cancel
+                        </ActionButton>
+                        <ActionButton
+                            type="submit"
+                            variant="primary"
+                            className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
+                        >
+                            <svg
+                                className="w-4 h-4 mr-2"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                />
+                            </svg>
+                            Create Timer
+                        </ActionButton>
+                    </div>
+                </form>
+            </Modal>
         </>
     );
 }

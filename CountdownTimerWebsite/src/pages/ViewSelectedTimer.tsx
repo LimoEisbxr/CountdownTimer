@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 import TizenTVDebugPanel from '../components/TizenTVDebugPanel';
+import { LoadingSpinner, EmptyState } from '../components/common';
 import { useTheme } from '../contexts/ThemeContext';
 
 function ViewSelectedTimer() {
@@ -262,10 +263,7 @@ function ViewSelectedTimer() {
                     <ThemeSwitcher />
                 </div>
 
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-                <p style={{ color: theme === 'dark' ? '#9ca3af' : '#6b7280' }}>
-                    Loading selected timer...
-                </p>
+                <LoadingSpinner text="Loading selected timer..." size="lg" />
 
                 {/* Tizen TV Debug Panel */}
                 <TizenTVDebugPanel />

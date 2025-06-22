@@ -1,13 +1,17 @@
 from flask import Flask, request, jsonify
 from flask_socketio import SocketIO
 from database import db
-from routes import routes, bp
+from routes import create_routes
+from auth import User, AuthManager
 import os, sqlalchemy, time
 from threading import Lock
+from dotenv import load_dotenv
 
+# Load environment variables from .env file
+load_dotenv()
 
+# Initialize SocketIO but don't create routes yet
 socketio = SocketIO(cors_allowed_origins="*")
-routes = routes(socketio=socketio)
 thread = None
 thread_lock = Lock()
 active_timers = set()  # Just track which timers are active
@@ -47,9 +51,24 @@ def background_task():
 def create_app():
     global app
     app = Flask(__name__)
-    base = os.path.abspath(os.path.dirname(__file__))
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(base, 'countdown.db')
+    
+    # PostgreSQL database configuration
+    # You can set these environment variables or modify directly
+    database_url = os.getenv('DATABASE_URL')
+    if database_url:
+        app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+    else:
+        # Default PostgreSQL configuration - modify these values for your setup
+        pg_user = os.getenv('POSTGRES_USER')
+        pg_password = os.getenv('POSTGRES_PASSWORD')
+        pg_host = os.getenv('POSTGRES_HOST')
+        pg_port = os.getenv('POSTGRES_PORT')
+        pg_database = os.getenv('POSTGRES_DB')
+        
+        app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{pg_user}:{pg_password}@{pg_host}:{pg_port}/{pg_database}'
+    
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 
     db.init_app(app)
     socketio.init_app(app)
@@ -77,9 +96,7 @@ def create_app():
             'error': 'Internal Server Error',
             'message': 'An unexpected error occurred',
             'code': 500
-        }), 500
-
-    # Start background timer task
+        }), 500    # Start background timer task
     global thread
     with thread_lock:
         if thread is None:
@@ -100,18 +117,42 @@ def create_app():
         cols = [c['name'] for c in insp.get_columns('timers')]
         if 'name' not in cols:
             with db.engine.begin() as conn:
-                conn.execute(sqlalchemy.text("ALTER TABLE timers ADD COLUMN name TEXT NOT NULL DEFAULT ''"))        # add paused to timers if missing
+                conn.execute(sqlalchemy.text("ALTER TABLE timers ADD COLUMN name TEXT NOT NULL DEFAULT ''"))        
+        
+        # add paused to timers if missing
         cols = [c['name'] for c in insp.get_columns('timers')]
         if 'paused' not in cols:
             with db.engine.begin() as conn:
-                conn.execute(sqlalchemy.text("ALTER TABLE timers ADD COLUMN paused BOOLEAN NOT NULL DEFAULT 1"))
-
-        # add selected_timer_id to projects if missing
+                conn.execute(sqlalchemy.text("ALTER TABLE timers ADD COLUMN paused BOOLEAN NOT NULL DEFAULT 1"))        # add selected_timer_id to projects if missing
         cols = [c['name'] for c in insp.get_columns('projects')]
         if 'selected_timer_id' not in cols:
             with db.engine.begin() as conn:
                 conn.execute(sqlalchemy.text("ALTER TABLE projects ADD COLUMN selected_timer_id INTEGER"))
 
+        # add authorised_projects to users if missing
+        cols = [c['name'] for c in insp.get_columns('users')]
+        if 'authorised_projects' not in cols:
+            with db.engine.begin() as conn:
+                conn.execute(sqlalchemy.text("ALTER TABLE users ADD COLUMN authorised_projects TEXT"))        # Create default admin user if no users exist
+        if User.query.count() == 0:
+            default_admin_username = os.getenv('DEFAULT_ADMIN_USERNAME', 'admin')
+            default_admin_password = os.getenv('DEFAULT_ADMIN_PASSWORD', 'admin123')
+            
+            admin_user, message = AuthManager.create_user(
+                default_admin_username, 
+                default_admin_password, 
+                is_admin=True
+            )
+            
+            if admin_user:
+                print(f"Created default admin user: {default_admin_username}")
+                print(f"Default password: {default_admin_password}")
+                print("IMPORTANT: Change the default password immediately!")
+            else:
+                print(f"Failed to create default admin user: {message}")
+
+    # Create and register the blueprint with routes
+    bp = create_routes(socketio)
     app.register_blueprint(bp)
     return app
 

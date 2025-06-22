@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import ProjectCard from '../components/projects/ProjectCard';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 import TizenTVDebugPanel from '../components/TizenTVDebugPanel';
+import { LoadingSpinner, EmptyState } from '../components/common';
 import { useTheme } from '../contexts/ThemeContext';
 import { forceApplyTheme } from '../utils/tizenTVHelper';
 import type { Project } from '../types/Project';
@@ -87,12 +88,11 @@ function ProjectsPage() {
             {/* Main Content */}
             <div className="py-6">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    {' '}
                     {/* Projects Grid */}
                     <div className="mt-8">
                         {loading ? (
-                            <div className="text-center py-10">
-                                <p>Loading projects...</p>
-                            </div>
+                            <LoadingSpinner text="Loading projects..." />
                         ) : projects.length > 0 ? (
                             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                                 {projects.map((project) => (
@@ -103,9 +103,11 @@ function ProjectsPage() {
                                 ))}
                             </div>
                         ) : (
-                            <div className="text-center py-10">
-                                <p>No projects available at this time.</p>
-                            </div>
+                            <EmptyState
+                                icon="📁"
+                                title="No projects available"
+                                description="No projects are available at this time."
+                            />
                         )}
                     </div>{' '}
                 </div>
