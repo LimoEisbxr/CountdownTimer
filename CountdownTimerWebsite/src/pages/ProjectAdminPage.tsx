@@ -5,7 +5,7 @@ import CreateTimerButton from '../components/timer/CreateTimerButton';
 import ViewSelectedTimerButton from '../components/timer/ViewSelectedTimerButton';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 import Login from '../components/login';
-import { LoadingSpinner, ActionButton, EmptyState } from '../components/common';
+import { LoadingSpinner, EmptyState } from '../components/common';
 
 interface ProjectData {
     name: string;
@@ -30,19 +30,11 @@ function ProjectAdminPage() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoginOpen, setIsLoginOpen] = useState(false);
     const [user, setUser] = useState<string | null>(null);
-    const [authChecked, setAuthChecked] = useState(false);
     const [isViewOnly, setIsViewOnly] = useState(true);
 
     useEffect(() => {
         checkAuthentication();
     }, []);
-
-    // Fetch project data and timers when component mounts
-    useEffect(() => {
-        if (projectID) {
-            fetchProjectData(projectID);
-        }
-    }, [projectID]); // Always fetch data, regardless of auth state
 
     function checkAuthentication() {
         // Check if user is already logged in (e.g., from localStorage token)
@@ -56,7 +48,6 @@ function ProjectAdminPage() {
         } else {
             setIsLoginOpen(true);
         }
-        setAuthChecked(true);
     }
 
     const handleLogin = async (
@@ -161,6 +152,13 @@ function ProjectAdminPage() {
         },
         [isAuthenticated, isViewOnly]
     );
+
+    // Fetch project data and timers when component mounts
+    useEffect(() => {
+        if (projectID) {
+            fetchProjectData(projectID);
+        }
+    }, [projectID, fetchProjectData]); // Always fetch data, regardless of auth state
 
     const handleTimerDeleted = (timerId: string) => {
         // Update local state to remove the deleted timer
