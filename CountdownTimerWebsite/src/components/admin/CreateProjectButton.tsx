@@ -1,4 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import type { User } from '../../types/User';
+import {
+    Modal,
+    FormField,
+    TextAreaField,
+    UserCheckboxList,
+    ActionButton,
+} from '../common';
 
 interface CreateProjectButtonProps {
     onProjectCreated?: () => void;
@@ -9,15 +17,55 @@ function CreateProjectButton({ onProjectCreated }: CreateProjectButtonProps) {
     const [isClosing, setIsClosing] = useState(false);
     const [projectName, setProjectName] = useState('');
     const [projectDescription, setProjectDescription] = useState('');
+    const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
+    const [loadingUsers, setLoadingUsers] = useState(false);
     const { createProject } = useCreateProject(onProjectCreated);
-
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        createProject(projectName, projectDescription);
+        createProject(projectName, projectDescription, selectedUsers);
         setProjectName('');
         setProjectDescription('');
+        setSelectedUsers([]);
         closeModal();
     };
+
+    const fetchUsers = async () => {
+        setLoadingUsers(true);
+        try {
+            const response = await fetch('/api/auth/users', {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem(
+                        'admin_token'
+                    )}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+            if (response.ok) {
+                const data = await response.json();
+                // Filter out admin users since they already have access to all projects
+                setUsers(data.users.filter((user: User) => !user.is_admin));
+            }
+        } catch (error) {
+            console.error('Error fetching users:', error);
+        } finally {
+            setLoadingUsers(false);
+        }
+    };
+
+    const toggleUserSelection = (userId: number) => {
+        setSelectedUsers((prev) =>
+            prev.includes(userId)
+                ? prev.filter((id) => id !== userId)
+                : [...prev, userId]
+        );
+    };
+
+    useEffect(() => {
+        if (isModalOpen) {
+            fetchUsers();
+        }
+    }, [isModalOpen]);
 
     const closeModal = () => {
         setIsClosing(true);
@@ -48,152 +96,183 @@ function CreateProjectButton({ onProjectCreated }: CreateProjectButtonProps) {
                     ></path>
                 </svg>
                 Create Project
-            </button>
+            </button>{' '}
+            <Modal
+                isOpen={isModalOpen}
+                isClosing={isClosing}
+                onClose={closeModal}
+                title="Create New Project"
+                maxWidth="max-w-lg"
+            >
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    {' '}
+                    <FormField
+                        label="Project Name"
+                        type="text"
+                        value={projectName}
+                        onChange={setProjectName}
+                        placeholder="Enter project name"
+                        required
+                    />
+                    <TextAreaField
+                        label="Description"
+                        value={projectDescription}
+                        onChange={setProjectDescription}
+                        placeholder="Describe your project"
+                    />
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                            User Permissions
+                        </label>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                            Select which non-admin users can edit this project.
+                            Admin users always have access to all projects.
+                        </p>
 
-            {isModalOpen && (
-                <div
-                    className={`fixed inset-0 z-50 flex items-center justify-center bg-white/30 dark:bg-gray-900/30 backdrop-blur-lg transition-opacity duration-300 ${
-                        isClosing ? 'opacity-0' : 'animate-fadeIn'
-                    }`}
-                >
-                    <div
-                        className={`w-full max-w-md p-6 mx-4 overflow-hidden transition-all transform bg-white/90 dark:bg-gray-800/90 rounded-xl shadow-xl backdrop-blur-sm duration-300 ${
-                            isClosing ? 'opacity-0 scale-95' : 'animate-scaleIn'
-                        }`}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="relative mb-5">
-                            <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-                                Create New Project
-                            </h3>
-                            <button
-                                className="absolute top-0 right-0 inline-flex items-center justify-center w-8 h-8 text-gray-600 rounded-full hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 focus:outline-none"
-                                onClick={closeModal}
-                            >
-                                <svg
-                                    className="w-5 h-5"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    ></path>
-                                </svg>
-                                <span className="sr-only">Close</span>
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleSubmit} className="space-y-5">
-                            <div>
-                                <label
-                                    htmlFor="projectName"
-                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                >
-                                    Project Name
-                                </label>
-                                <input
-                                    type="text"
-                                    id="projectName"
-                                    value={projectName}
-                                    onChange={(e) =>
-                                        setProjectName(e.target.value)
-                                    }
-                                    required
-                                    className="block w-full px-3 py-2 mt-1 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder-gray-400 dark:placeholder-gray-400"
-                                    placeholder="Enter project name"
-                                />
-                            </div>
-
-                            <div>
-                                <label
-                                    htmlFor="projectDescription"
-                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                >
-                                    Description
-                                </label>
-                                <textarea
-                                    id="projectDescription"
-                                    value={projectDescription}
-                                    onChange={(e) =>
-                                        setProjectDescription(e.target.value)
-                                    }
-                                    rows={3}
-                                    className="block w-full px-3 py-2 mt-1 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder-gray-400 dark:placeholder-gray-400"
-                                    placeholder="Describe your project"
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-end gap-3 mt-6">
-                                <button
-                                    type="button"
-                                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600"
-                                    onClick={closeModal}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-indigo-600 border border-transparent rounded-md shadow-sm hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
-                                >
-                                    <svg
-                                        className="w-4 h-4 mr-2"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth="2"
-                                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                                        ></path>
-                                    </svg>
-                                    Create Project
-                                </button>
-                            </div>
-                        </form>
+                        <UserCheckboxList
+                            users={users}
+                            selectedUsers={selectedUsers}
+                            onToggleUser={toggleUserSelection}
+                            loading={loadingUsers}
+                        />
                     </div>
-                </div>
-            )}
+                    <div className="flex items-center justify-end gap-3 mt-6">
+                        <ActionButton
+                            type="button"
+                            variant="secondary"
+                            onClick={closeModal}
+                        >
+                            Cancel
+                        </ActionButton>
+                        <ActionButton
+                            type="submit"
+                            variant="primary"
+                            className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
+                        >
+                            <svg
+                                className="w-4 h-4 mr-2"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                />
+                            </svg>
+                            Create Project
+                        </ActionButton>
+                    </div>
+                </form>
+            </Modal>
         </>
     );
 }
 
 function useCreateProject(onProjectCreated?: () => void) {
-    const createProject = (name: string, description: string) => {
+    const createProject = async (
+        name: string,
+        description: string,
+        authorizedUsers: number[] = []
+    ) => {
         // Logic to create a project goes here
-        console.log('Creating Project:', { name, description });
+        console.log('Creating Project:', {
+            name,
+            description,
+            authorizedUsers,
+        });
 
-        fetch('/api/projects', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ name, description }),
-        })
-            .then((res) => {
-                if (!res.ok) {
-                    throw new Error('Failed to create project');
-                }
-                return res.json();
-            })
-            .then((data) => {
-                console.log('Project created successfully:', data);
-                // Call the callback function to notify parent component
-                if (onProjectCreated) {
-                    onProjectCreated();
-                }
-            })
-            .catch((error) => {
-                console.error('Error creating project:', error);
-                // Handle error (e.g., show a notification)
+        try {
+            const response = await fetch('/api/projects', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${localStorage.getItem(
+                        'admin_token'
+                    )}`,
+                },
+                body: JSON.stringify({ name, description }),
             });
+
+            if (!response.ok) {
+                throw new Error('Failed to create project');
+            }
+
+            const projectData = await response.json();
+            console.log('Project created successfully:', projectData); // Set user permissions for the newly created project
+            if (authorizedUsers.length > 0) {
+                await Promise.all(
+                    authorizedUsers.map(async (userId) => {
+                        try {
+                            // Get current user permissions
+                            const userPermissionsResponse = await fetch(
+                                `/api/auth/users/${userId}/projects`,
+                                {
+                                    headers: {
+                                        Authorization: `Bearer ${localStorage.getItem(
+                                            'admin_token'
+                                        )}`,
+                                        'Content-Type': 'application/json',
+                                    },
+                                }
+                            );
+
+                            if (userPermissionsResponse.ok) {
+                                const userPermissions =
+                                    await userPermissionsResponse.json();
+                                const currentProjectIds =
+                                    userPermissions.authorized_projects.map(
+                                        (p: { id: number }) => p.id
+                                    );
+
+                                // Add this project to user's permissions
+                                const updatedProjectIds = [
+                                    ...currentProjectIds,
+                                    projectData.id,
+                                ];
+
+                                const permissionResponse = await fetch(
+                                    `/api/auth/users/${userId}/projects`,
+                                    {
+                                        method: 'PUT',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            Authorization: `Bearer ${localStorage.getItem(
+                                                'admin_token'
+                                            )}`,
+                                        },
+                                        body: JSON.stringify({
+                                            project_ids: updatedProjectIds,
+                                        }),
+                                    }
+                                );
+
+                                if (!permissionResponse.ok) {
+                                    console.error(
+                                        `Failed to set permissions for user ${userId}`
+                                    );
+                                }
+                            }
+                        } catch (error) {
+                            console.error(
+                                `Error setting permissions for user ${userId}:`,
+                                error
+                            );
+                        }
+                    })
+                );
+            }
+
+            // Call the callback function to notify parent component
+            if (onProjectCreated) {
+                onProjectCreated();
+            }
+        } catch (error) {
+            console.error('Error creating project:', error);
+            // Handle error (e.g., show a notification)
+        }
     };
     return { createProject };
 }

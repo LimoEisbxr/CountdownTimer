@@ -35,29 +35,17 @@
     --card-bg: #1f2937;
 }
 
-/* Tizen TV specific overrides and fallbacks */
-@media screen and (min-width: 1280px) {
-    /* Enhanced visibility for TV screens */
-    :root {
-        --border-width: 2px;
-        --button-min-size: 48px;
-        --focus-ring-width: 4px;
-    }
+/* Tizen TV specific overrides and fallbacks - only apply when explicitly needed */
+/* These styles should only be applied to elements with TV-specific classes */
+.tv-enhanced-button {
+    min-height: 48px;
+    min-width: 48px;
+    border-width: 2px;
+}
 
-    /* Ensure buttons are large enough for TV remote navigation */
-    button,
-    [role='button'] {
-        min-height: var(--button-min-size, 48px);
-        min-width: var(--button-min-size, 48px);
-        border-width: var(--border-width, 2px);
-    }
-
-    /* Enhanced focus indicators for TV navigation */
-    button:focus,
-    [role='button']:focus {
-        outline: var(--focus-ring-width, 4px) solid currentColor;
-        outline-offset: 2px;
-    }
+.tv-enhanced-button:focus {
+    outline: 4px solid currentColor;
+    outline-offset: 2px;
 }
 
 /* Fallback styles using CSS custom properties for better TV compatibility */
@@ -81,7 +69,7 @@
     border-color: var(--border-color) !important;
 }
 
-/* Enhanced button styles for TV compatibility */
+/* Enhanced button styles for TV compatibility - only when tv-button class is applied */
 .tv-button {
     background-color: var(--button-bg) !important;
     color: var(--text-primary) !important;
@@ -99,14 +87,11 @@
     outline-offset: 2px !important;
 }
 
-/* Only apply enhanced focus styles on large screens (TV) */
-@media screen and (min-width: 1280px) {
-    /* Enhanced focus indicators for TV navigation */
-    .tv-button:focus,
-    .tv-enhanced-focus:focus {
-        outline: var(--focus-ring-width, 4px) solid currentColor;
-        outline-offset: 2px;
-    }
+/* Enhanced focus styles for TV navigation - only apply to actual TV buttons */
+.tv-button:focus,
+.tv-enhanced-focus:focus {
+    outline: var(--focus-ring-width, 4px) solid currentColor;
+    outline-offset: 2px;
 }
 
 /* For non-TV devices, keep standard focus styles */
@@ -216,16 +201,6 @@ textarea {
 @media (hover: hover) and (pointer: fine) {
     .hover\:scale-105:hover {
         transform: scale(1.05);
-    }
-}
-
-/* Tizen TV specific improvements */
-@media screen and (min-width: 1280px) {
-    /* Larger touch targets for TV remote navigation */
-    button,
-    [role='button'] {
-        min-height: 48px;
-        min-width: 48px;
     }
 }
 

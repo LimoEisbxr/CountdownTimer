@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ProjectCardProps } from '../../types/ProjectCardProps';
+import type { User } from '../../types/User';
 
 function AdminProjectCard({
     project,
@@ -16,11 +17,88 @@ function AdminProjectCard({
     const [editedDescription, setEditedDescription] = useState(
         project.description || ''
     );
-
+    const [selectedUsers, setSelectedUsers] = useState<number[]>(
+        project.authorized_users || []
+    );
+    const [users, setUsers] = useState<User[]>([]);
+    const [loadingUsers, setLoadingUsers] = useState(false);
     const handleEditProject = () => {
         setEditedName(project.name);
         setEditedDescription(project.description || '');
+        setSelectedUsers(project.authorized_users || []);
         setShowEditModal(true);
+        fetchUsers();
+    };
+    const fetchUsers = async () => {
+        setLoadingUsers(true);
+        try {
+            const response = await fetch('/api/auth/users', {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem(
+                        'admin_token'
+                    )}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+            if (response.ok) {
+                const data = await response.json();
+                // Filter out admin users since they already have access to all projects
+                const nonAdminUsers = data.users.filter(
+                    (user: User) => !user.is_admin
+                );
+                setUsers(nonAdminUsers);
+
+                // Fetch current user permissions for this project
+                const usersWithPermissions: number[] = [];
+                await Promise.all(
+                    nonAdminUsers.map(async (user: User) => {
+                        try {
+                            const permissionResponse = await fetch(
+                                `/api/auth/users/${user.id}/projects`,
+                                {
+                                    headers: {
+                                        Authorization: `Bearer ${localStorage.getItem(
+                                            'admin_token'
+                                        )}`,
+                                        'Content-Type': 'application/json',
+                                    },
+                                }
+                            );
+                            if (permissionResponse.ok) {
+                                const permissions =
+                                    await permissionResponse.json();
+                                const hasPermission =
+                                    permissions.authorized_projects.some(
+                                        (p: { id: number }) =>
+                                            p.id === project.id
+                                    );
+                                if (hasPermission) {
+                                    usersWithPermissions.push(user.id);
+                                }
+                            }
+                        } catch (error) {
+                            console.error(
+                                `Error fetching permissions for user ${user.id}:`,
+                                error
+                            );
+                        }
+                    })
+                );
+                setSelectedUsers(usersWithPermissions);
+            }
+        } catch (error) {
+            console.error('Error fetching users:', error);
+        } finally {
+            setLoadingUsers(false);
+        }
+    };
+
+    const toggleUserSelection = (userId: number) => {
+        setSelectedUsers((prev) =>
+            prev.includes(userId)
+                ? prev.filter((id) => id !== userId)
+                : [...prev, userId]
+        );
     };
 
     const closeEditModal = () => {
@@ -42,41 +120,166 @@ function AdminProjectCard({
             setIsClosingDelete(false);
         }, 300); // Match this duration with the CSS transition
     };
-
-    const submitEdit = (e: React.FormEvent<HTMLFormElement>) => {
+    const submitEdit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setIsUpdating(true);
 
-        fetch(`/api/projects/${project.id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                name: editedName,
-                description: editedDescription,
-            }),
-        })
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error('Failed to update project');
-                }
-                return response.json();
-            })
-            .then((data) => {
-                console.log('Project updated successfully:', data);
-                // Notify parent component about update if callback exists
-                if (onProjectUpdated) {
-                    onProjectUpdated(data);
-                }
-                setIsUpdating(false);
-                closeEditModal();
-            })
-            .catch((error) => {
-                console.error('Error updating project:', error);
-                setIsUpdating(false);
-                // Could add error state here to show in the modal
+        try {
+            // Update project basic info
+            const response = await fetch(`/api/projects/${project.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${localStorage.getItem(
+                        'admin_token'
+                    )}`,
+                },
+                body: JSON.stringify({
+                    name: editedName,
+                    description: editedDescription,
+                }),
             });
+
+            if (!response.ok) {
+                throw new Error('Failed to update project');
+            }
+
+            const projectData = await response.json();
+            console.log('Project updated successfully:', projectData);
+
+            // Update user permissions for each selected user
+            if (selectedUsers.length > 0) {
+                await Promise.all(
+                    selectedUsers.map(async (userId) => {
+                        try {
+                            // Get current user permissions
+                            const userPermissionsResponse = await fetch(
+                                `/api/auth/users/${userId}/projects`,
+                                {
+                                    headers: {
+                                        Authorization: `Bearer ${localStorage.getItem(
+                                            'admin_token'
+                                        )}`,
+                                        'Content-Type': 'application/json',
+                                    },
+                                }
+                            );
+
+                            if (userPermissionsResponse.ok) {
+                                const userPermissions =
+                                    await userPermissionsResponse.json();
+                                const currentProjectIds =
+                                    userPermissions.authorized_projects.map(
+                                        (p: { id: number }) => p.id
+                                    );
+
+                                // Add this project to user's permissions if not already present
+                                if (!currentProjectIds.includes(project.id)) {
+                                    const updatedProjectIds = [
+                                        ...currentProjectIds,
+                                        project.id,
+                                    ];
+
+                                    await fetch(
+                                        `/api/auth/users/${userId}/projects`,
+                                        {
+                                            method: 'PUT',
+                                            headers: {
+                                                'Content-Type':
+                                                    'application/json',
+                                                Authorization: `Bearer ${localStorage.getItem(
+                                                    'admin_token'
+                                                )}`,
+                                            },
+                                            body: JSON.stringify({
+                                                project_ids: updatedProjectIds,
+                                            }),
+                                        }
+                                    );
+                                }
+                            }
+                        } catch (error) {
+                            console.error(
+                                `Error updating permissions for user ${userId}:`,
+                                error
+                            );
+                        }
+                    })
+                );
+            }
+
+            // Remove permissions from users not in selectedUsers
+            const allUsers = users.filter(
+                (user) => !selectedUsers.includes(user.id)
+            );
+            await Promise.all(
+                allUsers.map(async (user) => {
+                    try {
+                        // Get current user permissions
+                        const userPermissionsResponse = await fetch(
+                            `/api/auth/users/${user.id}/projects`,
+                            {
+                                headers: {
+                                    Authorization: `Bearer ${localStorage.getItem(
+                                        'admin_token'
+                                    )}`,
+                                    'Content-Type': 'application/json',
+                                },
+                            }
+                        );
+
+                        if (userPermissionsResponse.ok) {
+                            const userPermissions =
+                                await userPermissionsResponse.json();
+                            const currentProjectIds =
+                                userPermissions.authorized_projects.map(
+                                    (p: { id: number }) => p.id
+                                );
+
+                            // Remove this project from user's permissions if present
+                            if (currentProjectIds.includes(project.id)) {
+                                const updatedProjectIds =
+                                    currentProjectIds.filter(
+                                        (id: number) => id !== project.id
+                                    );
+
+                                await fetch(
+                                    `/api/auth/users/${user.id}/projects`,
+                                    {
+                                        method: 'PUT',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            Authorization: `Bearer ${localStorage.getItem(
+                                                'admin_token'
+                                            )}`,
+                                        },
+                                        body: JSON.stringify({
+                                            project_ids: updatedProjectIds,
+                                        }),
+                                    }
+                                );
+                            }
+                        }
+                    } catch (error) {
+                        console.error(
+                            `Error updating permissions for user ${user.id}:`,
+                            error
+                        );
+                    }
+                })
+            );
+
+            // Notify parent component about update if callback exists
+            if (onProjectUpdated) {
+                onProjectUpdated(projectData);
+            }
+            closeEditModal();
+        } catch (error) {
+            console.error('Error updating project:', error);
+            // Could add error state here to show in the modal
+        } finally {
+            setIsUpdating(false);
+        }
     };
 
     const confirmDelete = () => {
@@ -171,8 +374,9 @@ function AdminProjectCard({
                         isClosingEdit ? 'opacity-0' : 'animate-fadeIn'
                     }`}
                 >
+                    {' '}
                     <div
-                        className={`w-full max-w-md p-6 mx-4 overflow-hidden transition-all transform bg-white/90 dark:bg-gray-800/90 rounded-xl shadow-xl backdrop-blur-sm duration-300 ${
+                        className={`w-full max-w-lg p-6 mx-4 overflow-hidden transition-all transform bg-white/90 dark:bg-gray-800/90 rounded-xl shadow-xl backdrop-blur-sm duration-300 ${
                             isClosingEdit
                                 ? 'opacity-0 scale-95'
                                 : 'animate-scaleIn'
@@ -227,8 +431,7 @@ function AdminProjectCard({
                                     placeholder="Enter project name"
                                     autoComplete="off"
                                 />
-                            </div>
-
+                            </div>{' '}
                             <div>
                                 <label
                                     htmlFor="projectDescription"
@@ -248,7 +451,54 @@ function AdminProjectCard({
                                     autoComplete="off"
                                 />
                             </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                                    User Permissions
+                                </label>
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                                    Select which non-admin users can edit this
+                                    project. Admin users always have access to
+                                    all projects.
+                                </p>
 
+                                {loadingUsers ? (
+                                    <div className="flex items-center justify-center py-4">
+                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                                        <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+                                            Loading users...
+                                        </span>
+                                    </div>
+                                ) : users.length > 0 ? (
+                                    <div className="max-h-32 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded-md p-2 space-y-2">
+                                        {users.map((user) => (
+                                            <label
+                                                key={user.id}
+                                                className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 p-1 rounded"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedUsers.includes(
+                                                        user.id
+                                                    )}
+                                                    onChange={() =>
+                                                        toggleUserSelection(
+                                                            user.id
+                                                        )
+                                                    }
+                                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2 focus:ring-offset-0 dark:border-gray-600 dark:bg-gray-700 dark:checked:bg-blue-600 dark:checked:border-blue-600 checked:bg-blue-600 checked:border-blue-600"
+                                                />
+                                                <span className="text-sm text-gray-700 dark:text-gray-300">
+                                                    {user.username}
+                                                </span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 py-2">
+                                        No non-admin users available
+                                    </p>
+                                )}
+                            </div>
                             <div className="flex items-center justify-end gap-3 mt-6">
                                 <button
                                     type="button"

@@ -17,7 +17,7 @@ const detectTizenTV = (): boolean => {
     const userAgent = navigator.userAgent.toLowerCase();
     const platform = navigator.platform?.toLowerCase() || '';
 
-    // Check for Tizen TV specific identifiers
+    // Check for Tizen TV specific identifiers - be more strict and only detect actual TVs
     return (
         userAgent.includes('tizen') ||
         userAgent.includes('smart-tv') ||
@@ -30,13 +30,8 @@ const detectTizenTV = (): boolean => {
                 userAgent.includes('netcast'))) ||
         // Additional TV browser checks
         userAgent.includes('hbbtv') ||
-        userAgent.includes('ce-html') ||
-        // Check for TV screen characteristics
-        (typeof screen !== 'undefined' &&
-            screen.width >= 1920 &&
-            screen.height >= 1080 &&
-            !('ontouchstart' in window) &&
-            !window.matchMedia('(pointer: fine)').matches)
+        userAgent.includes('ce-html')
+        // Removed overly broad screen size detection that was triggering on desktop browsers
     );
 };
 
