@@ -5,16 +5,20 @@ interface LoginProps {
     isOpen: boolean;
     onClose: () => void;
     onLogin: (username: string, password: string) => Promise<void>;
+    onViewOnly?: () => void;
     title?: string;
     subtitle?: string;
+    showOnlyViewButton?: boolean;
 }
 
 const Login: React.FC<LoginProps> = ({
     isOpen,
     onClose,
     onLogin,
+    onViewOnly,
     title = 'Login',
     subtitle = 'Please sign in to your account',
+    showOnlyViewButton = false,
 }) => {
     const { isTizenTV } = useTheme();
     const [username, setUsername] = useState('');
@@ -143,7 +147,7 @@ const Login: React.FC<LoginProps> = ({
                             onChange={(e) => setUsername(e.target.value)}
                             required
                             disabled={isLoading}
-                            className="block w-full px-3 py-2 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder-gray-400 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="block w-full px-3 py-2 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder-gray-400 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="Enter your username or email"
                             autoComplete="username"
                         />
@@ -163,18 +167,18 @@ const Login: React.FC<LoginProps> = ({
                             onChange={(e) => setPassword(e.target.value)}
                             required
                             disabled={isLoading}
-                            className="block w-full px-3 py-2 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder-gray-400 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="block w-full px-3 py-2 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder-gray-400 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="Enter your password"
                             autoComplete="current-password"
                         />
                     </div>
 
                     {/* Action buttons */}
-                    <div className="flex items-center justify-between gap-3 pt-4">
+                    <div className="flex justify-between flex-col gap-3 pt-4">
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className={`${buttonClasses} text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex-1`}
+                            className={`${buttonClasses} text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1`}
                             style={
                                 isTizenTV
                                     ? {
@@ -207,6 +211,34 @@ const Login: React.FC<LoginProps> = ({
                                 'Sign In'
                             )}
                         </button>
+
+                        {/* View Only Button */}
+                        {showOnlyViewButton && (
+                            <button
+                                disabled={isLoading}
+                                className={`${buttonClasses} text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1`}
+                                onClick={() => {
+                                    if (onViewOnly) {
+                                        onViewOnly();
+                                    }
+                                }}
+                                type="button"
+                                style={
+                                    isTizenTV
+                                        ? {
+                                              background:
+                                                  'linear-gradient(to right, #6b7280, #4b5563)',
+                                              borderColor: '#6b7280',
+                                              color: '#ffffff',
+                                          }
+                                        : {
+                                              background: '#6b7280',
+                                          }
+                                }
+                            >
+                                Continue without Login
+                            </button>
+                        )}
                     </div>
                 </form>
             </div>

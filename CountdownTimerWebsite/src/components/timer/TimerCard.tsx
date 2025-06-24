@@ -22,6 +22,8 @@ interface TimerCardProps {
     onTimerDeleted?: (id: string) => void;
     onTimerUpdated?: (timer: Timer) => void;
     onTimerSelected?: (id: string) => void;
+    isViewOnly?: boolean;
+    disabled?: boolean;
 }
 
 // Dynamically generate API and WebSocket base URLs from the current browser location
@@ -36,6 +38,7 @@ function TimerCard({
     onTimerDeleted,
     onTimerUpdated,
     onTimerSelected,
+    disabled = false,
 }: TimerCardProps) {
     const { hostname } = window.location;
     const API_BASE_URL = `/api/projects/${projectId}`;
@@ -69,6 +72,8 @@ function TimerCard({
     );
     const [durationError, setDurationError] = useState<string>('');
 
+    const disabledClasses = 'opacity-30 cursor-not-allowed grayscale-90'; // Define disabled classes
+
     // WebSocket reference
     const wsRef = useRef<Socket | null>(null); // Format time as HH:MM:SS
     const formatTime = (seconds: number): string => {
@@ -82,29 +87,6 @@ function TimerCard({
             secs.toString().padStart(2, '0'),
         ].join(':');
     };
-
-    // Fetch current timer state from server
-    // const fetchTimerState = useCallback(async () => {
-    //     try {
-    //         setIsLoading(true);
-    //         const response = await fetch(API_BASE_URL);
-
-    //         if (!response.ok) {
-    //             throw new Error(`HTTP error! Status: ${response.status}`);
-    //         }
-
-    //         let timerData = await response.json();
-    //         timerData = timerData.timers;
-
-    //         setIsRunning(timerData.isRunning || false);
-    //         setIsPaused(timerData.isPaused || false);
-    //         setIsLoading(false);
-    //     } catch (err) {
-    //         console.error('Error fetching timer state:', err);
-    //         setError('Failed to load timer data');
-    //         setIsLoading(false);
-    //     }
-    // }, [API_BASE_URL]);
 
     // Initialize WebSocket connection
     useEffect(() => {
@@ -478,9 +460,16 @@ function TimerCard({
                             <button
                                 className={`px-3 py-1.5 rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-opacity-50 ${
                                     isSelected
-                                        ? 'bg-green-500 hover:bg-green-600 text-white focus:ring-green-400'
-                                        : 'bg-gray-500 hover:bg-gray-600 text-white focus:ring-gray-400'
+                                        ? 'bg-green-500 text-white focus:ring-green-400'
+                                        : 'bg-gray-500 text-white focus:ring-gray-400'
+                                } ${
+                                    disabled
+                                        ? disabledClasses
+                                        : isSelected
+                                        ? 'hover:bg-green-600'
+                                        : 'hover:bg-gray-600'
                                 }`}
+                                disabled={disabled}
                                 onClick={selectTimer}
                                 title={
                                     isSelected
@@ -491,7 +480,7 @@ function TimerCard({
                                 {isSelected ? (
                                     // Checkmark icon when selected
                                     <svg
-                                        className="w-4 h-4"
+                                        className="w-6 h-6"
                                         fill="none"
                                         stroke="currentColor"
                                         viewBox="0 0 24 24"
@@ -507,7 +496,7 @@ function TimerCard({
                                 ) : (
                                     // Bookmark icon when not selected
                                     <svg
-                                        className="w-4 h-4"
+                                        className="w-6 h-6"
                                         fill="none"
                                         stroke="currentColor"
                                         viewBox="0 0 24 24"
@@ -533,7 +522,7 @@ function TimerCard({
                                 title="View Timer"
                             >
                                 <svg
-                                    className="w-4 h-4"
+                                    className="w-6 h-6"
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
@@ -594,12 +583,12 @@ function TimerCard({
                             {!isRunning && !isPaused && (
                                 <button
                                     onClick={startTimer}
-                                    disabled={isLoading}
-                                    className={`px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 text-lg font-medium ${
-                                        isLoading
+                                    disabled={isLoading || disabled}
+                                    className={`px-6 py-3 bg-blue-500 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 text-lg font-medium ${
+                                        isLoading || disabled
                                             ? 'opacity-50 cursor-not-allowed'
-                                            : ''
-                                    }`}
+                                            : 'hover:bg-blue-600'
+                                    } ${disabled ? 'grayscale-90' : ''}`}
                                 >
                                     <svg
                                         className="w-10 h-6"
@@ -627,12 +616,12 @@ function TimerCard({
                             {isRunning && (
                                 <button
                                     onClick={pauseTimer}
-                                    disabled={isLoading}
-                                    className={`px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-50 text-lg font-medium ${
-                                        isLoading
+                                    disabled={isLoading || disabled}
+                                    className={`px-6 py-3 bg-yellow-500 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-50 text-lg font-medium ${
+                                        isLoading || disabled
                                             ? 'opacity-50 cursor-not-allowed'
-                                            : ''
-                                    }`}
+                                            : 'hover:bg-yellow-600'
+                                    } ${disabled ? 'grayscale-90' : ''}`}
                                 >
                                     <svg
                                         className="w-10 h-6"
@@ -654,12 +643,12 @@ function TimerCard({
                             {isPaused && (
                                 <button
                                     onClick={startTimer}
-                                    disabled={isLoading}
-                                    className={`px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 text-lg font-medium ${
-                                        isLoading
+                                    disabled={isLoading || disabled}
+                                    className={`px-6 py-3 bg-blue-500 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 text-lg font-medium ${
+                                        isLoading || disabled
                                             ? 'opacity-50 cursor-not-allowed'
-                                            : ''
-                                    }`}
+                                            : 'hover:bg-blue-600'
+                                    } ${disabled ? 'grayscale-90' : ''}`}
                                 >
                                     <svg
                                         className="w-10 h-6"
@@ -689,12 +678,12 @@ function TimerCard({
                         <div className="flex gap-2">
                             <button
                                 onClick={resetTimer}
-                                disabled={isLoading}
-                                className={`px-4 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50 ${
-                                    isLoading
+                                disabled={isLoading || disabled}
+                                className={`px-4 py-3 bg-gray-500 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50 ${
+                                    isLoading || disabled
                                         ? 'opacity-50 cursor-not-allowed'
-                                        : ''
-                                }`}
+                                        : 'hover:bg-gray-600'
+                                } ${disabled ? 'grayscale-90' : ''}`}
                             >
                                 <svg
                                     className="w-6 h-6"
@@ -713,8 +702,13 @@ function TimerCard({
                             </button>
 
                             <button
-                                className="px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
+                                className={`px-4 py-3 bg-blue-500 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 ${
+                                    disabled
+                                        ? disabledClasses
+                                        : 'hover:bg-blue-600'
+                                }`}
                                 onClick={handleEditTimer}
+                                disabled={disabled}
                             >
                                 <svg
                                     className="w-6 h-6"
@@ -733,8 +727,13 @@ function TimerCard({
                             </button>
 
                             <button
-                                className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-50"
+                                className={`px-4 py-3 bg-red-500 text-white rounded-md flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-50 ${
+                                    disabled
+                                        ? disabledClasses
+                                        : 'hover:bg-red-600'
+                                }`}
                                 onClick={openDeleteConfirmation}
+                                disabled={disabled}
                             >
                                 <svg
                                     className="w-6 h-6"
@@ -996,7 +995,7 @@ function TimerCard({
                             >
                                 {isDeleting ? (
                                     <svg
-                                        className="w-4 h-4 animate-spin"
+                                        className="w-6 h-6 animate-spin"
                                         fill="none"
                                         stroke="currentColor"
                                         viewBox="0 0 24 24"
@@ -1011,7 +1010,7 @@ function TimerCard({
                                     </svg>
                                 ) : (
                                     <svg
-                                        className="w-4 h-4"
+                                        className="w-6 h-6"
                                         fill="none"
                                         stroke="currentColor"
                                         viewBox="0 0 24 24"

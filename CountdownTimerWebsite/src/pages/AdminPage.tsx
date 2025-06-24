@@ -138,24 +138,27 @@ function AdminPage() {
         }
         const data = await response.json();
 
-        console.log('Login successful:', data);
+        // console.log('Login response:', data);
+        if (data.user.is_admin) {
+            // console.log('Login successful:', data);
 
-        // Store authentication data
-        localStorage.setItem('admin_token', data.token);
-        localStorage.setItem('admin_user', username);
+            // Store authentication data
+            localStorage.setItem('admin_token', data.token);
+            localStorage.setItem('admin_user', username);
 
-        // Decode JWT to get user ID
-        try {
-            const payload = JSON.parse(atob(data.token.split('.')[1]));
-            setCurrentUserId(payload.user_id);
-        } catch (error) {
-            console.error('Error decoding token:', error);
+            // Decode JWT to get user ID
+            try {
+                const payload = JSON.parse(atob(data.token.split('.')[1]));
+                setCurrentUserId(payload.user_id);
+            } catch (error) {
+                console.error('Error decoding token:', error);
+            }
+
+            // Update state
+            setIsAuthenticated(true);
+            setUser(username);
+            setIsLoginOpen(false);
         }
-
-        // Update state
-        setIsAuthenticated(true);
-        setUser(username);
-        setIsLoginOpen(false);
     };
     const handleLogout = () => {
         localStorage.removeItem('admin_token');

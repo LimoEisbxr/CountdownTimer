@@ -223,4 +223,7 @@ def default_error_handler(e):
 
 if __name__ == '__main__':
     app = create_app()
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
+
+    flask_debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() in ['true', '1', 'yes']
+    
+    socketio.run(app, debug=flask_debug_mode, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)

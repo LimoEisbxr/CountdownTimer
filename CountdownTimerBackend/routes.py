@@ -9,7 +9,7 @@ def create_routes(socketio):
     bp = Blueprint('api', __name__)
     
     @bp.route('/api/projects', methods=['POST'])
-    @optional_auth
+    @admin_required
     def create_project():
         data = request.get_json() or {}
         name = data.get('name')
@@ -25,25 +25,12 @@ def create_routes(socketio):
             'id': p.id,
             'name': p.name,
             'description': p.description
-        }), 201
+        }), 201        
         
     @bp.route('/api/projects', methods=['GET'])
-    @optional_project_access
     def list_projects():
-        # Filter projects based on user permissions
-        if hasattr(request, 'accessible_projects'):
-            if request.accessible_projects == 'all':
-                # Admin can see all projects
-                projects = Project.query.all()
-            elif request.accessible_projects:
-                # Regular user can see only authorized projects
-                projects = Project.query.filter(Project.id.in_(request.accessible_projects)).all()
-            else:
-                # User has no project permissions or not authenticated
-                projects = []
-        else:
-            # No authentication - return empty list
-            projects = []
+        # Everyone can see all projects (read-only)
+        projects = Project.query.all()
         
         # Debug: Print all projects and their selected timers
         print("DEBUG: All projects and their selected timers:")
@@ -70,6 +57,7 @@ def create_routes(socketio):
             }
             for p in projects
         ])    
+        
     @bp.route('/api/projects/<int:project_id>/timers', methods=['POST'])
     @project_access_required
     def create_timer(project_id):
@@ -95,11 +83,11 @@ def create_routes(socketio):
             'duration': t.duration,
             'description': t.description,
             'end_time': t.end_time.isoformat()
-        }), 201
-
+        }), 201    
+    
     @bp.route('/api/projects/<int:project_id>/timers/<int:timer_id>', methods=['GET'])
-    @project_access_required
     def get_timer(project_id, timer_id):
+        # Everyone can view timer details (read-only)
         project = Project.query.get_or_404(project_id)
         t = Timer.query.filter_by(id=timer_id, project=project).first_or_404()
         return jsonify({
@@ -138,6 +126,7 @@ def create_routes(socketio):
             'remaining_seconds': t.remaining(),
             'paused': t.paused
         }), 200    
+        
     @bp.route('/api/projects/<int:project_id>/timers/<int:timer_id>/pause', methods=['POST'])
     @project_access_required
     def pause_timer(project_id, timer_id):
@@ -165,6 +154,7 @@ def create_routes(socketio):
             'remaining_seconds': t.remaining(),
             'paused': t.paused
         }), 200    
+        
     @bp.route('/api/projects/<int:project_id>/timers/<int:timer_id>', methods=['PUT'])
     @project_access_required
     def edit_timer(project_id, timer_id):
@@ -197,6 +187,7 @@ def create_routes(socketio):
             'description': timer.description,
             'end_time': timer.end_time.isoformat()
         }), 200    
+        
     @bp.route('/api/projects/<int:project_id>/timers/<int:timer_id>', methods=['DELETE'])
     @project_access_required
     def delete_timer(project_id, timer_id):
@@ -210,6 +201,7 @@ def create_routes(socketio):
         db.session.delete(timer)
         db.session.commit()
         return jsonify({'message': 'Timer deleted'}), 200    
+    
     @bp.route('/api/projects/<int:project_id>/timers/<int:timer_id>/reset', methods=['POST'])
     @project_access_required
     def reset_timer(project_id, timer_id):
@@ -232,10 +224,11 @@ def create_routes(socketio):
             'duration': t.duration,
             'remaining_seconds': t.remaining(),
             'paused': t.paused
-        }), 200    
+        }), 200      
+        
     @bp.route('/api/projects/<int:project_id>', methods=['GET'])
-    @project_access_required
     def get_project(project_id):
+        # Everyone can view project details (read-only)
         project = Project.query.get_or_404(project_id)
         timers = Timer.query.filter_by(project=project).all()
         
@@ -260,8 +253,9 @@ def create_routes(socketio):
                 for x in timers
             ]
         }), 200    
+        
     @bp.route('/api/projects/<int:project_id>', methods=['PUT'])
-    @project_access_required
+    @admin_required
     def edit_project(project_id):
         project = Project.query.get_or_404(project_id)
         data = request.get_json() or {}
@@ -278,6 +272,7 @@ def create_routes(socketio):
             'id': project.id,
             'name': project.name,
             'description': project.description        }), 200    
+        
     @bp.route('/api/projects/<int:project_id>', methods=['DELETE'])
     @admin_required
     def delete_project(project_id):
@@ -310,6 +305,7 @@ def create_routes(socketio):
             print(f"DEBUG API: Available timers: {[t.id for t in p.timers]}")
         
         return jsonify(debug_info)    
+    
     @bp.route('/api/projects/<int:project_id>/select-timer/<int:timer_id>', methods=['POST'])
     @project_access_required
     def select_timer(project_id, timer_id):
@@ -368,7 +364,8 @@ def create_routes(socketio):
             db.session.commit()
             db.session.refresh(project)
             print(f"DEBUG: New selected timer after commit: {project.selected_timer_id}")
-              # Verify the change was persisted
+            
+            # Verify the change was persisted
             verification_project = Project.query.get(project_id)
             print(f"DEBUG: Verification - selected timer in DB: {verification_project.selected_timer_id}")
             
@@ -376,8 +373,7 @@ def create_routes(socketio):
             return jsonify({
                 'message': 'Timer deselected',
                 'selected_timer_id': None,
-                'project_id': project_id
-            }), 200
+                'project_id': project_id            }), 200
             
         except Exception as e:
             print(f"DEBUG: ERROR in deselect_timer: {str(e)}")
@@ -385,8 +381,8 @@ def create_routes(socketio):
             raise
 
     @bp.route('/api/projects/<int:project_id>/selected-timer', methods=['GET'])
-    @project_access_required
     def get_selected_timer(project_id):
+        # Everyone can view the selected timer (read-only)
         project = Project.query.get_or_404(project_id)
         
         if not project.selected_timer_id:

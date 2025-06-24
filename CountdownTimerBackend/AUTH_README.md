@@ -43,10 +43,18 @@ python test_auth.py
 
 ## 🔐 Authentication System
 
-### User Types
+### Access Levels
 
+-   **Anonymous Users**: Read-only access to all projects and timers (view-only)
+-   **Regular Users**: Full access to authorized projects (view and modify)
 -   **Admin Users**: Full access to all projects and user management
--   **Regular Users**: Access only to authorized projects
+
+### View vs Modify Access
+
+The system now provides universal read access while protecting write operations:
+
+-   **View Operations (Public)**: Anyone can view all projects, timers, and their states
+-   **Modify Operations (Authentication Required)**: Creating, editing, starting/stopping timers requires authentication and appropriate permissions
 
 ### Login Process
 
@@ -86,12 +94,26 @@ python test_auth.py
 
 ### Project & Timer Access
 
-All project-related endpoints now require appropriate permissions:
+Project and timer endpoints are now split between public read access and authenticated write access:
 
--   `GET /api/projects` - List accessible projects
+#### Public Read Access (No Authentication Required)
+
+-   `GET /api/projects` - View all projects and their timers
+-   `GET /api/projects/{id}` - View specific project details
+-   `GET /api/projects/{id}/timers/{timer_id}` - View timer details
+-   `GET /api/projects/{id}/selected-timer` - View currently selected timer
+
+#### Authenticated Write Access (Authentication + Permissions Required)
+
+-   `POST /api/projects` - Create new project (optional authentication)
 -   `POST /api/projects/{id}/timers` - Create timer (requires project access)
--   `GET/PUT/DELETE /api/projects/{id}/timers/{timer_id}` - Timer operations (requires project access)
+-   `PUT /api/projects/{id}` - Edit project (requires project access)
+-   `DELETE /api/projects/{id}` - Delete project (admin only)
+-   `PUT /api/projects/{id}/timers/{timer_id}` - Edit timer (requires project access)
+-   `DELETE /api/projects/{id}/timers/{timer_id}` - Delete timer (requires project access)
 -   `POST /api/projects/{id}/timers/{timer_id}/start|pause|reset` - Timer controls (requires project access)
+-   `POST /api/projects/{id}/select-timer/{timer_id}` - Select timer (requires project access)
+-   `POST /api/projects/{id}/deselect-timer` - Deselect timer (requires project access)
 
 ### Test Error Codes
 
@@ -131,20 +153,39 @@ python test_auth.py
 
 ## 📝 Usage Examples
 
-### 1. Login and Get Projects
+### 1. View Projects (No Authentication Needed)
 
 ```bash
-# Login
+# Anyone can view all projects and timers
+curl -X GET http://localhost:5000/api/projects
+
+# View specific project details
+curl -X GET http://localhost:5000/api/projects/1
+
+# View selected timer for a project
+curl -X GET http://localhost:5000/api/projects/1/selected-timer
+```
+
+### 2. Login and Modify Projects
+
+```bash
+# Login to get authentication token
 curl -X POST http://localhost:5000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username": "admin", "password": "admin123"}'
 
-# Get projects (with token)
-curl -X GET http://localhost:5000/api/projects \
+# Create a timer (requires authentication)
+curl -X POST http://localhost:5000/api/projects/1/timers \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "My Timer", "duration": 300, "description": "5 minute timer"}'
+
+# Start a timer (requires authentication)
+curl -X POST http://localhost:5000/api/projects/1/timers/1/start \
   -H "Authorization: Bearer YOUR_TOKEN_HERE"
 ```
 
-### 2. Grant Project Permission to User
+### 3. Grant Project Permission to User
 
 ```bash
 # Admin grants project access to user ID 2 for project ID 1
@@ -160,16 +201,34 @@ curl -X GET http://localhost:5000/api/auth/me/projects \
   -H "Authorization: Bearer USER_TOKEN_HERE"
 ```
 
+## 🌐 Public Access Features
+
+The system now provides universal read access to encourage transparency and collaboration:
+
+-   **Project Discovery**: Anyone can browse all available projects
+-   **Timer Monitoring**: Real-time viewing of timer states and countdowns
+-   **State Transparency**: Current selected timers and project information visible to all
+-   **No Barrier to View**: No registration required to see project status
+
+This approach allows for:
+
+-   Public dashboards and displays
+-   Monitoring systems without authentication
+-   Easy integration with read-only clients
+-   Transparency in project timer states
+
 ## 🔒 Security Features
 
--   **JWT Tokens**: Secure, stateless authentication
+-   **JWT Tokens**: Secure, stateless authentication for write operations
 -   **HTTP-Only Cookies**: XSS protection for browser clients
 -   **Password Hashing**: bcrypt with salt
--   **Per-Project Permissions**: Granular access control
+-   **Per-Project Permissions**: Granular access control for modifications
 -   **Admin Override**: Admins bypass all project restrictions
 -   **Token Expiration**: Configurable token lifetimes
 -   **Input Validation**: All inputs validated and sanitized
 -   **Proper Error Codes**: Clear distinction between "not found" and "access denied"
+-   **Public Read Access**: Universal transparency while protecting write operations
+-   **Graduated Access**: View-only → Authenticated → Admin hierarchy
 
 ## 📊 HTTP Status Codes
 
@@ -185,26 +244,44 @@ The API uses proper HTTP status codes to indicate different types of errors:
 
 ### Project Access Error Codes
 
-When accessing projects, you'll receive different error codes based on the situation:
+The API now distinguishes between view and modify operations:
 
--   **404 Not Found**: The project ID doesn't exist in the database
--   **403 Forbidden**: The project exists, but you don't have permission to access it
--   **200 OK**: The project exists and you have permission to access it
+#### View Operations (Always Allowed)
+
+-   **200 OK**: Project/timer data returned successfully
+-   **404 Not Found**: The requested resource doesn't exist
+
+#### Modify Operations (Authentication Required)
+
+-   **200 OK**: Modification successful
+-   **400 Bad Request**: Invalid request data or parameters
+-   **401 Unauthorized**: Authentication required or token invalid
+-   **403 Forbidden**: Valid authentication but insufficient permissions for this project
+-   **404 Not Found**: Resource (project, timer, user) does not exist
 
 Example responses:
 
 ```json
-// 404 - Project doesn't exist
+// 200 - Anyone can view projects
 {
-  "error": "Not Found",
-  "message": "Project not found",
-  "code": 404
+  "id": 1,
+  "name": "My Project",
+  "description": "A sample project",
+  "selected_timer_id": 5,
+  "timers": [...]
 }
 
-// 403 - Project exists but no permission
+// 401 - Modification requires authentication
+{
+  "error": "Unauthorized",
+  "message": "Authentication required",
+  "code": 401
+}
+
+// 403 - Authenticated but no permission for this project
 {
   "error": "Forbidden",
-  "message": "You do not have permission to access this project",
+  "message": "You do not have permission to modify this project",
   "code": 403
 }
 ```
@@ -268,5 +345,27 @@ If upgrading from a version without authentication:
 
 1. Run `python init_auth.py` to add new database columns
 2. Create admin user with `python create_admin_account.py`
-3. Existing projects remain accessible to admin users
-4. Grant project permissions to regular users as needed
+3. **All projects are now viewable by everyone** - no migration needed for read access
+4. Grant project permissions to users who need **modification** access
+5. Existing functionality maintains backward compatibility for viewing
+
+## 🎯 Use Cases
+
+### Public Display/Dashboard
+
+-   No authentication required
+-   Real-time timer monitoring
+-   Project status visibility
+-   Perfect for TV displays, monitoring screens
+
+### Team Collaboration
+
+-   Authenticated users can create and modify
+-   Per-project permissions for controlled access
+-   Admin oversight and management
+
+### Mixed Access
+
+-   Anonymous users see current state
+-   Authenticated users can interact and control
+-   Smooth transition from observer to participant
