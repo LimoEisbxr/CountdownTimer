@@ -7,4 +7,15 @@ export default defineConfig({
     server: {
         allowedHosts: ['countdowntimer-dev.limonadeundco.duckdns.org'],
     },
+    build: {
+        outDir: 'dist',
+        assetsDir: 'assets',
+        rollupOptions: {
+            output: {
+                manualChunks: undefined,
+            },
+        },
+    },
+    clearScreen: false,
+    envPrefix: ['VITE_', 'TAURI_'],
 });
