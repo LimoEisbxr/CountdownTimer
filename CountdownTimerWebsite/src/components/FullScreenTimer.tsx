@@ -38,6 +38,8 @@ function FullScreenTimer({
         const screenWidth = window.innerWidth;
 
         // Mobile devices (prioritize better mobile experience)
+        if (screenWidth <= 320) return 0.25; // Extra small phones (iPhone SE, older Android)
+        if (screenWidth <= 375) return 0.3; // Small phones (iPhone 12 mini, iPhone SE)
         if (screenWidth <= 480) return 0.4; // Very small phones
         if (screenWidth <= 768) return 0.6; // Phones and small tablets
         if (screenWidth <= 1024) return 0.8; // Tablets
@@ -52,6 +54,8 @@ function FullScreenTimer({
     const deviceScale = getDeviceScale(); // Dynamic padding based on screen size
     const getPadding = () => {
         const screenWidth = window.innerWidth;
+        if (screenWidth <= 320) return 16; // Minimal padding for extra small phones
+        if (screenWidth <= 375) return 20; // Reduced padding for small phones
         if (screenWidth <= 480) return 24; // More padding for phones
         if (screenWidth <= 768) return 32; // More padding for tablets
         return 48; // Normal padding for desktop/TV
@@ -62,7 +66,19 @@ function FullScreenTimer({
     // Dynamic spacing based on screen size
     const getSpacing = () => {
         const screenWidth = window.innerWidth;
-        if (screenWidth <= 480) {
+        if (screenWidth <= 320) {
+            return {
+                headerMargin: '12px',
+                timerMargin: '16px',
+                progressMargin: '12px',
+            };
+        } else if (screenWidth <= 375) {
+            return {
+                headerMargin: '14px',
+                timerMargin: '20px',
+                progressMargin: '16px',
+            };
+        } else if (screenWidth <= 480) {
             return {
                 headerMargin: '16px',
                 timerMargin: '24px',
@@ -88,7 +104,17 @@ function FullScreenTimer({
     // Dynamic progress bar dimensions
     const getProgressBarDimensions = () => {
         const screenWidth = window.innerWidth;
-        if (screenWidth <= 480) {
+        if (screenWidth <= 320) {
+            return {
+                width: Math.min(screenWidth * 0.85, 270),
+                height: 12,
+            };
+        } else if (screenWidth <= 375) {
+            return {
+                width: Math.min(screenWidth * 0.88, 300),
+                height: 14,
+            };
+        } else if (screenWidth <= 480) {
             return {
                 width: Math.min(screenWidth * 0.9, 320),
                 height: 16,
@@ -110,7 +136,25 @@ function FullScreenTimer({
     const getFontSizes = () => {
         const screenWidth = window.innerWidth;
 
-        if (screenWidth <= 480) {
+        if (screenWidth <= 320) {
+            // Extra small phones - optimized for iPhone SE 1st gen and older Android
+            return {
+                title: Math.min(22, screenWidth * 0.055),
+                description: Math.min(12, screenWidth * 0.025),
+                timer: Math.min(58, screenWidth * 0.16), // Optimized timer size
+                error: Math.min(14, screenWidth * 0.03),
+                status: Math.min(14, screenWidth * 0.035),
+            };
+        } else if (screenWidth <= 375) {
+            // Small phones - iPhone 12 mini, iPhone SE 2nd/3rd gen
+            return {
+                title: Math.min(25, screenWidth * 0.058),
+                description: Math.min(13, screenWidth * 0.028),
+                timer: Math.min(65, screenWidth * 0.17), // Slightly larger timer
+                error: Math.min(15, screenWidth * 0.032),
+                status: Math.min(15, screenWidth * 0.038),
+            };
+        } else if (screenWidth <= 398) {
             // Very small phones - make timer much larger relative to screen
             return {
                 title: Math.min(28, screenWidth * 0.06),
